@@ -571,6 +571,63 @@ def _start_api(jarvis_instance):
             except Exception as e:
                 return {"message": str(e), "plan": "free"}
 
+        @fapp.post("/api/autostart/toggle")
+        async def autostart_toggle_ep(_tok: str = Depends(require_auth)):
+            """Enable/disable JARVIS on Windows startup."""
+            try:
+                import winreg
+                key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+                jarvis_path = str(Path(__file__).resolve())
+                python_path = sys.executable
+                cmd = f'"{python_path}" "{jarvis_path}"'
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS)
+                try:
+                    winreg.QueryValueEx(key, "JARVIS_AI")
+                    # Already exists — disable
+                    winreg.DeleteValue(key, "JARVIS_AI")
+                    winreg.CloseKey(key)
+                    return {"enabled": False, "message": "Autostart disabled — JARVIS will not start with Windows"}
+                except FileNotFoundError:
+                    # Doesn't exist — enable
+                    winreg.SetValueEx(key, "JARVIS_AI", 0, winreg.REG_SZ, cmd)
+                    winreg.CloseKey(key)
+                    return {"enabled": True, "message": "Autostart enabled — JARVIS will start with Windows"}
+            except Exception as e:
+                return {"enabled": False, "message": f"Could not set autostart: {e}"}
+
+        @fapp.post("/api/payment/upi_confirm")
+        async def upi_confirm_ep(request: Request, _tok: str = Depends(require_auth)):
+            """User confirms they completed UPI payment — issues a pending license."""
+            rate_limit(request, "auth")
+            try:
+                body   = await request.json()
+                plan   = body.get("plan", "pro_monthly")   # pro_monthly / pro_annual / lifetime
+                amount = body.get("amount", "")
+                utr    = body.get("utr", "").strip()       # UPI Transaction Reference
+                email  = body.get("email", "").strip()
+                # Store pending payment for manual verification
+                import json as _json, hashlib as _h, time as _t
+                pend_file = config.MEMORY_DIR / "pending_payments.json"
+                pend = _json.loads(pend_file.read_text()) if pend_file.exists() else []
+                entry = {"utr": utr, "plan": plan, "amount": amount,
+                         "email": email, "ts": _t.time(), "verified": False}
+                pend.append(entry)
+                pend_file.write_text(_json.dumps(pend, indent=2))
+                # Send admin notification email
+                try:
+                    import smtplib, ssl
+                    ctx = ssl.create_default_context()
+                    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx) as s:
+                        s.login(config.GMAIL_USER, config.GMAIL_APP_PASSWORD)
+                        subj = f"[JARVIS] UPI Payment Pending - {plan} - UTR: {utr}"
+                        body_txt = f"New payment pending verification:\n\nPlan: {plan}\nAmount: {amount}\nUTR: {utr}\nEmail: {email}\n\nVerify and reply with license key."
+                        msg = f"Subject: {subj}\n\n{body_txt}"
+                        s.sendmail(config.GMAIL_USER, "joytanna21@gmail.com", msg)
+                except Exception: pass
+                return {"status": "pending", "message": "Payment recorded. Your Pro access will be activated within 2 hours after verification. Check your email for the license key."}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+
         @fapp.post("/api/license/admin_login")
         async def admin_login_ep(request: Request, _tok: str = Depends(require_auth)):
             """Android owner login — grants Lifetime on that device."""
@@ -598,7 +655,7 @@ def _start_api(jarvis_instance):
         # ── Health ─────────────────────────────────────────────────────────
         @fapp.get("/health")
         async def health():
-            return {"status": "online", "devices": len(_ws_clients)}
+            return {"status": "online", "version": "1.0", "devices": len(_ws_clients)}
 
         # ── WebSocket ──────────────────────────────────────────────────────
         @fapp.websocket("/ws")

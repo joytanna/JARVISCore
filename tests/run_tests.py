@@ -575,7 +575,7 @@ test("Random: roll_dice 1d6 in range",
 test("Random: random_number in range",
      lambda: "Random number" in rt.random_number(1, 10))
 test("Random: random_choice picks one",
-     lambda: any(x in rt.random_choice("pizza, burgers, sushi")
+     lambda: any(x in rt.random_choice("pizza, burgers, sushi").replace("**","")
                  for x in ["pizza", "burgers", "sushi"]))
 test("Random: tell_joke returns string",
      lambda: isinstance(rt.tell_joke(), str) and len(rt.tell_joke()) > 10)
@@ -824,7 +824,7 @@ total   = len(_results)
 avg_ms  = sum(r[2] for r in _results) // max(total, 1)
 
 print(f"\n{'='*70}")
-print(f"  JARVIS Test Suite ? {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"  JARVIS Test Suite // {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"{'='*70}")
 print(f"  Total:   {total}")
 print(f"  Passed:  {passed}")
@@ -837,7 +837,7 @@ if failed:
     print("Failed tests:")
     for name, ok, ms, err in _results:
         if not ok:
-            print(f"  ? {name}")
+            print(f"  [FAIL] {name}")
             if err: print(f"    {err}")
 
 sys.exit(0 if failed == 0 else 1)
