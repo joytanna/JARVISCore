@@ -1,5 +1,5 @@
 
-# JARVIS security — auto-added
+# JARVIS security ï¿½ auto-added
 .env
 *.env
 memory/
@@ -21,3 +21,5 @@ auth.json
 dist/
 build/
 .vscode/settings.json
+.venv/
+*.venv/
