@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JARVIS — Personal AI OS</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#06b6d4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+/* ── Variables ───────────────────────────────────────────────────────── */
+:root{
+  --bg:#05070c; --bg2:#080c16; --bg3:#0d1320; --bg4:#111827;
+  --border:#1e2d40; --border2:#243448;
+  --accent:#06b6d4; --accent2:#0891b2; --accent3:#22d3ee;
+  --green:#10b981; --amber:#f59e0b; --purple:#a78bfa; --red:#ef4444; --pink:#ec4899;
+  --text:#e2e8f0; --text2:#94a3b8; --text3:#475569;
+  --sidebar:52px; --radius:10px; --trans:.2s ease;
+}
+/* ── Reset ───────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:14px}
+button{cursor:pointer;border:none;outline:none;font-family:inherit}
+input,textarea,select{font-family:inherit;outline:none;border:none}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── Loading ─────────────────────────────────────────────────────────── */
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px}
+.spin{width:44px;height:44px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{font-family:monospace;font-size:.7rem;letter-spacing:.2em;color:var(--text3)}
+
+/* ── Setup Wizard ────────────────────────────────────────────────────── */
+#setup{position:fixed;inset:0;background:var(--bg);z-index:500;display:none;
+  align-items:center;justify-content:center;flex-direction:column}
+.setup-card{width:min(440px,94vw);background:var(--bg2);border:1px solid var(--border);
+  border-radius:16px;padding:36px 32px;display:flex;flex-direction:column;gap:22px}
+.setup-prog{display:flex;gap:5px;justify-content:center}
+.setup-prog-dot{width:6px;height:6px;border-radius:3px;background:var(--border2);
+  transition:all .3s;flex-shrink:0}
+.setup-prog-dot.active{background:var(--accent);width:20px}
+.setup-prog-dot.done{background:var(--green)}
+.setup-step{display:none;flex-direction:column;gap:16px}
+.setup-step.active{display:flex}
+.setup-icon{font-size:2.4rem;text-align:center}
+.setup-title{font-size:1.3rem;font-weight:600;text-align:center;color:var(--text)}
+.setup-sub{font-size:.85rem;color:var(--text2);text-align:center;line-height:1.5}
+.setup-input{background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  border-radius:8px;padding:10px 14px;width:100%;font-size:.9rem;transition:border var(--trans)}
+.setup-input:focus{border-color:var(--accent)}
+.setup-btn{background:var(--accent);color:#fff;border-radius:8px;padding:11px;
+  font-size:.9rem;font-weight:600;width:100%;transition:background var(--trans);letter-spacing:.03em}
+.setup-btn:hover{background:var(--accent2)}
+.setup-btn-sec{background:var(--bg3);color:var(--text2);border:1px solid var(--border2);
+  border-radius:8px;padding:10px;font-size:.85rem;width:100%;transition:background var(--trans)}
+.setup-btn-sec:hover{background:var(--bg4)}
+.setup-perm-row{display:flex;align-items:center;gap:12px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.setup-perm-icon{font-size:1.3rem;flex-shrink:0}
+.setup-perm-info{flex:1}
+.setup-perm-info strong{display:block;font-size:.85rem;margin-bottom:2px}
+.setup-perm-info span{font-size:.75rem;color:var(--text2)}
+.setup-perm-status{font-size:.75rem;font-weight:600;padding:4px 10px;border-radius:4px;
+  background:var(--bg4);color:var(--text3)}
+.setup-perm-status.ok{background:#064e3b;color:var(--green)}
+.setup-perm-status.perm-granted{background:#1e3a5f;color:#60a5fa;cursor:default}
+
+/* ── Login Screen ────────────────────────────────────────────────────── */
+#login{position:fixed;inset:0;background:var(--bg);z-index:400;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:8px}
+.login-card{width:min(360px,90vw);background:var(--bg2);border:1px solid var(--border);
+  border-radius:16px;padding:32px 28px;display:flex;flex-direction:column;gap:18px}
+.login-logo{text-align:center;font-family:monospace;font-size:1.4rem;
+  letter-spacing:.3em;color:var(--accent);font-weight:700}
+.login-sub{text-align:center;font-size:.8rem;color:var(--text3);letter-spacing:.08em}
+
+/* ── Main App Layout ─────────────────────────────────────────────────── */
+#app{display:none;height:100vh;width:100vw;flex-direction:row}
+#app.visible{display:flex}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;transition:width .25s ease;overflow:hidden;z-index:10}
+#sidebar:hover,#sidebar.open{width:200px}
+.sb-logo{height:52px;display:flex;align-items:center;padding:0 14px;gap:11px;
+  border-bottom:1px solid var(--border);flex-shrink:0;white-space:nowrap;overflow:hidden}
+.sb-logo-icon{font-size:1.1rem;flex-shrink:0;color:var(--accent)}
+.sb-logo-text{font-family:monospace;font-size:.8rem;letter-spacing:.2em;
+  color:var(--accent);font-weight:700;opacity:0;transition:opacity .2s .05s}
+#sidebar:hover .sb-logo-text,#sidebar.open .sb-logo-text{opacity:1}
+.sb-nav{flex:1;overflow-y:auto;padding:8px 0}
+.sb-item{display:flex;align-items:center;gap:13px;padding:10px 14px;
+  cursor:pointer;color:var(--text2);border-radius:0;transition:all var(--trans);
+  white-space:nowrap;overflow:hidden;position:relative}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-item.active{background:linear-gradient(90deg,rgba(6,182,212,.15),transparent);
+  color:var(--accent);border-right:2px solid var(--accent)}
+.sb-item svg{flex-shrink:0;width:18px;height:18px}
+.sb-item-label{font-size:.82rem;font-weight:500;opacity:0;transition:opacity .2s .05s}
+#sidebar:hover .sb-item-label,#sidebar.open .sb-item-label{opacity:1}
+.sb-badge{position:absolute;top:8px;left:26px;min-width:16px;height:16px;
+  background:var(--red);border-radius:8px;font-size:.6rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;color:#fff;padding:0 3px}
+.sb-status{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;gap:11px;cursor:pointer;color:var(--text3);
+  white-space:nowrap;overflow:hidden;transition:color var(--trans)}
+.sb-status:hover{color:var(--text2)}
+.sb-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;
+  box-shadow:0 0 6px var(--green);animation:pulse-dot 2s ease infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.sb-status-text{font-size:.72rem;opacity:0;transition:opacity .2s}
+#sidebar:hover .sb-status-text,#sidebar.open .sb-status-text{opacity:1}
+
+/* ── Content Area ────────────────────────────────────────────────────── */
+#content{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column}
+
+/* ── Panel Base ──────────────────────────────────────────────────────── */
+.panel{display:none;flex-direction:column;height:100%;overflow:hidden}
+.panel.active{display:flex}
+.panel-header{height:48px;display:flex;align-items:center;padding:0 20px;
+  border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
+.panel-title{font-size:.95rem;font-weight:600;letter-spacing:.04em}
+.panel-body{flex:1;overflow-y:auto;padding:20px}
+.ph-actions{margin-left:auto;display:flex;gap:8px}
+
+/* ── Chat Panel ──────────────────────────────────────────────────────── */
+#panel-chat{position:relative}
+.chat-orb-area{flex-shrink:0;display:flex;flex-direction:column;align-items:center;
+  padding:10px 0 4px;position:relative}
+#orb-canvas{width:160px;height:160px;cursor:pointer}
+.state-label{font-family:monospace;font-size:.62rem;letter-spacing:.18em;
+  color:var(--accent);margin-top:4px;transition:color .5s;text-transform:uppercase}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px 20px;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:78%;padding:10px 14px;border-radius:12px;
+  font-size:.875rem;line-height:1.6;word-break:break-word;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.bubble.user{background:linear-gradient(135deg,#0c2a3d,#0a1e30);
+  border:1px solid #1e3a52;align-self:flex-end;border-bottom-right-radius:3px;color:#94c5e0}
+.bubble.jarvis{background:var(--bg2);border:1px solid var(--border);
+  align-self:flex-start;border-bottom-left-radius:3px}
+.bubble.sys{background:transparent;border:none;color:var(--text3);
+  font-size:.75rem;font-family:monospace;align-self:center;text-align:center}
+.bubble.error{background:#1a0a0a;border:1px solid #3f1212;color:#f87171;align-self:flex-start}
+.bubble pre{background:var(--bg3);border:1px solid var(--border);border-radius:6px;
+  padding:10px;overflow-x:auto;font-size:.8rem;margin:8px 0;white-space:pre-wrap}
+.chat-bar{flex-shrink:0;padding:10px 14px;border-top:1px solid var(--border);
+  display:flex;gap:8px;align-items:flex-end;background:var(--bg2)}
+.chat-bar-inner{flex:1;background:var(--bg3);border:1px solid var(--border2);
+  border-radius:10px;display:flex;align-items:flex-end;gap:4px;padding:2px 6px;
+  transition:border-color var(--trans)}
+.chat-bar-inner:focus-within{border-color:var(--accent)}
+#chat-input{flex:1;background:transparent;color:var(--text);padding:8px 6px;
+  resize:none;font-size:.9rem;line-height:1.5;max-height:100px;min-height:36px}
+#chat-input::placeholder{color:var(--text3)}
+.btn-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;transition:all var(--trans)}
+.btn-clip{background:transparent;color:var(--text3)}
+.btn-clip:hover{color:var(--text);background:var(--bg4)}
+.btn-send{background:var(--accent);color:#fff}
+.btn-send:hover{background:var(--accent2)}
+.btn-stop{background:var(--red);color:#fff;display:none}
+.btn-stop.visible{display:flex}
+#file-input{display:none}
+/* Suggestion chips — Gemini-style */
+.chip{background:var(--bg3);border:1px solid var(--border2);color:var(--text2);
+  border-radius:20px;padding:5px 13px;font-size:.72rem;cursor:pointer;
+  white-space:nowrap;transition:all .15s;font-family:inherit}
+.chip:hover{background:var(--bg4);border-color:var(--accent);color:var(--accent)}
+/* Listening wave — shown when voice is active */
+#voice-wave{display:none;align-items:center;justify-content:center;gap:3px;height:28px}
+#voice-wave.active{display:flex}
+.vbar{width:3px;border-radius:2px;background:var(--green);
+  animation:vwave .6s ease-in-out infinite alternate}
+.vbar:nth-child(1){height:6px;animation-delay:0s}
+.vbar:nth-child(2){height:14px;animation-delay:.1s}
+.vbar:nth-child(3){height:22px;animation-delay:.05s}
+.vbar:nth-child(4){height:14px;animation-delay:.15s}
+.vbar:nth-child(5){height:8px;animation-delay:.08s}
+@keyframes vwave{from{transform:scaleY(.4)}to{transform:scaleY(1.1)}}
+.device-bar{height:28px;display:flex;align-items:center;gap:8px;
+  padding:0 16px;border-top:1px solid var(--border);font-size:.72rem;
+  color:var(--text3);flex-shrink:0;background:var(--bg)}
+.dev-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.dev-dot.online{background:var(--green)}
+
+/* ── Generic Card ────────────────────────────────────────────────────── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.card-title{font-size:.8rem;font-weight:600;color:var(--text2);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:12px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+
+/* ── Form Elements ───────────────────────────────────────────────────── */
+.field-label{font-size:.75rem;color:var(--text2);margin-bottom:5px;font-weight:500}
+.field-input{background:var(--bg3);border:1px solid var(--border2);color:var(--text);
+  border-radius:7px;padding:9px 12px;width:100%;font-size:.875rem;
+  transition:border-color var(--trans)}
+.field-input:focus{border-color:var(--accent)}
+textarea.field-input{resize:vertical;min-height:80px}
+.btn-primary{background:var(--accent);color:#fff;border-radius:7px;padding:9px 18px;
+  font-size:.85rem;font-weight:600;transition:background var(--trans)}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border);
+  border-radius:7px;padding:9px 16px;font-size:.85rem;transition:all var(--trans)}
+.btn-ghost:hover{background:var(--bg4);color:var(--text)}
+.btn-danger{background:var(--red);color:#fff;border-radius:7px;padding:7px 14px;
+  font-size:.8rem;font-weight:600;transition:opacity var(--trans)}
+.btn-danger:hover{opacity:.8}
+.btn-sm{padding:6px 12px;font-size:.78rem}
+
+/* ── List Items ──────────────────────────────────────────────────────── */
+.list-item{display:flex;align-items:center;gap:12px;padding:11px 14px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  transition:border-color var(--trans);cursor:pointer}
+.list-item:hover{border-color:var(--border2)}
+.list-item-icon{font-size:1.1rem;flex-shrink:0;width:30px;text-align:center}
+.list-item-main{flex:1;min-width:0}
+.list-item-title{font-size:.875rem;font-weight:500;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.list-item-sub{font-size:.75rem;color:var(--text2);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-item-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* ── Tags / Badges ───────────────────────────────────────────────────── */
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;
+  font-size:.7rem;font-weight:600;letter-spacing:.04em}
+.tag-cyan{background:rgba(6,182,212,.15);color:var(--accent)}
+.tag-green{background:rgba(16,185,129,.15);color:var(--green)}
+.tag-amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.tag-red{background:rgba(239,68,68,.15);color:var(--red)}
+.tag-purple{background:rgba(167,139,250,.15);color:var(--purple)}
+
+/* ── Section ─────────────────────────────────────────────────────────── */
+.section{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.section-header{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:4px}
+.section-title{font-size:.78rem;font-weight:700;color:var(--text2);
+  text-transform:uppercase;letter-spacing:.1em}
+
+/* ── Email Panel ─────────────────────────────────────────────────────── */
+.email-item{display:flex;gap:12px;padding:12px 14px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all var(--trans)}
+.email-item:hover{border-color:var(--border2);background:var(--bg3)}
+.email-item.unread .email-subject{font-weight:700;color:var(--text)}
+.email-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--purple));
+  display:flex;align-items:center;justify-content:center;font-size:.8rem;
+  font-weight:700;flex-shrink:0;color:#fff}
+.email-info{flex:1;min-width:0}
+.email-from{font-size:.8rem;font-weight:600;margin-bottom:2px;color:var(--text2)}
+.email-subject{font-size:.875rem;color:var(--text);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.email-snippet{font-size:.75rem;color:var(--text3);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.email-meta{text-align:right;flex-shrink:0}
+.email-time{font-size:.72rem;color:var(--text3)}
+
+/* ── Calendar ────────────────────────────────────────────────────────── */
+.event-item{display:flex;gap:12px;padding:12px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:8px;align-items:flex-start}
+.event-time-col{min-width:56px;text-align:center;flex-shrink:0}
+.event-time-day{font-size:.65rem;color:var(--text3);text-transform:uppercase;letter-spacing:.1em}
+.event-time-num{font-size:1.3rem;font-weight:700;color:var(--accent);line-height:1}
+.event-time-hr{font-size:.72rem;color:var(--text2);margin-top:2px}
+.event-bar{width:3px;border-radius:2px;background:var(--accent);flex-shrink:0;
+  margin-top:4px;align-self:stretch}
+.event-info{flex:1;min-width:0}
+.event-title{font-size:.875rem;font-weight:600}
+.event-loc{font-size:.75rem;color:var(--text2);margin-top:3px}
+
+/* ── Notes ───────────────────────────────────────────────────────────── */
+.note-item{padding:14px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;cursor:pointer;transition:all var(--trans)}
+.note-item:hover{border-color:var(--accent);background:var(--bg3)}
+.note-item-title{font-size:.9rem;font-weight:600;margin-bottom:4px}
+.note-item-preview{font-size:.78rem;color:var(--text2);line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.note-item-footer{display:flex;align-items:center;justify-content:space-between;
+  margin-top:8px}
+.note-item-date{font-size:.7rem;color:var(--text3)}
+
+/* ── Security/Vault ──────────────────────────────────────────────────── */
+.vault-item{display:flex;align-items:center;gap:12px;padding:11px 14px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px}
+.vault-icon{font-size:1.1rem;flex-shrink:0}
+.vault-info{flex:1;min-width:0}
+.vault-site{font-size:.875rem;font-weight:600}
+.vault-user{font-size:.75rem;color:var(--text2);margin-top:2px}
+.vault-pw{font-family:monospace;font-size:.8rem;color:var(--text3);letter-spacing:.1em}
+
+/* ── Automation Panel ────────────────────────────────────────────────── */
+.auto-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:16px 12px;font-size:.78rem;color:var(--text2);transition:all var(--trans);cursor:pointer}
+.auto-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--bg3)}
+.auto-btn svg,.auto-btn span.icon{font-size:1.4rem}
+.auto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px}
+
+/* ── Research Panel ──────────────────────────────────────────────────── */
+.news-item{padding:14px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;display:flex;gap:12px;cursor:pointer;transition:border-color var(--trans)}
+.news-item:hover{border-color:var(--border2)}
+.news-thumb{width:64px;height:64px;border-radius:6px;background:var(--bg3);
+  flex-shrink:0;object-fit:cover}
+.news-info{flex:1;min-width:0}
+.news-title{font-size:.85rem;font-weight:600;margin-bottom:4px;line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.news-source{font-size:.72rem;color:var(--text3)}
+
+/* ── Settings ────────────────────────────────────────────────────────── */
+.setting-row{display:flex;align-items:center;gap:12px;padding:12px 0;
+  border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-info{flex:1}
+.setting-info strong{display:block;font-size:.875rem;margin-bottom:2px}
+.setting-info small{font-size:.75rem;color:var(--text2)}
+.toggle{position:relative;width:42px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--border2);border-radius:12px;cursor:pointer;
+  transition:background var(--trans)}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;
+  background:#fff;left:3px;top:3px;transition:transform var(--trans)}
+.toggle input:checked~.toggle-slider{background:var(--accent)}
+.toggle input:checked~.toggle-slider::before{transform:translateX(18px)}
+
+/* ── Notification Toast ──────────────────────────────────────────────── */
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;
+  gap:8px;z-index:999;pointer-events:none}
+.toast{background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;font-size:.82rem;max-width:300px;animation:toastIn .3s ease;
+  pointer-events:auto;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.toast.ok{border-color:var(--green)}
+.toast.err{border-color:var(--red)}
+.toast.info{border-color:var(--accent)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+/* ── Modal ───────────────────────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);
+  display:flex;align-items:center;justify-content:center;z-index:300;display:none}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+  padding:24px;width:min(460px,92vw);display:flex;flex-direction:column;gap:16px;
+  max-height:85vh;overflow-y:auto}
+.modal-title{font-size:1rem;font-weight:600}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end}
+
+/* ── Voice Panel ─────────────────────────────────────────────────────── */
+.voice-wave{display:flex;align-items:center;justify-content:center;gap:3px;height:40px}
+.wave-bar{width:4px;background:var(--accent);border-radius:2px;animation:wave 1s ease-in-out infinite}
+.wave-bar:nth-child(2){animation-delay:.1s;height:60%}
+.wave-bar:nth-child(3){animation-delay:.2s;height:90%}
+.wave-bar:nth-child(4){animation-delay:.3s;height:70%}
+.wave-bar:nth-child(5){animation-delay:.4s;height:50%}
+@keyframes wave{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media(max-width:640px){
+  #sidebar{position:fixed;left:0;top:0;bottom:0;z-index:20;transform:translateX(-100%);transition:transform .25s}
+  #sidebar.open{transform:none;width:200px}
+  #content{margin-left:0}
+  .chat-orb-area{padding:6px 0 2px}
+  #orb-canvas{width:120px;height:120px}
+  .grid-2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Bootloader ──────────────────────────────────────────────────── -->
+<div id="loading" style="background:#000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;height:100vh;gap:0;padding:40px">
+  <div style="font-family:monospace;font-size:2rem;font-weight:700;letter-spacing:.2em;
+    color:#06b6d4;text-shadow:0 0 30px #06b6d488;margin-bottom:4px;
+    animation:btFade .8s ease .1s both">JARVIS AI</div>
+  <div style="font-family:monospace;font-size:.55rem;letter-spacing:.4em;color:#475569;
+    margin-bottom:32px;animation:btFade .6s ease .5s both">PERSONAL AI ASSISTANT</div>
+  <div id="bt-term" style="font-family:monospace;font-size:.75rem;color:#475569;
+    line-height:1.9;width:100%;max-width:380px;min-height:160px"></div>
+  <div style="width:100%;max-width:380px;height:2px;background:#111;border-radius:1px;margin-top:24px">
+    <div id="bt-bar" style="height:100%;background:linear-gradient(90deg,#06b6d4,#a78bfa);
+      width:0%;transition:width .4s ease;border-radius:1px;box-shadow:0 0 8px #06b6d466"></div>
+  </div>
+  <style>
+    @keyframes btFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    .bt-line{color:#475569;white-space:nowrap}
+    .bt-ok{color:#10b981;font-weight:600}
+  </style>
+</div>
+<script>
+(function(){
+  var BL=[
+    {t:'CORE SYSTEMS        ',s:'OK',  d:80 },
+    {t:'GEMINI 2.5 FLASH    ',s:'OK',  d:280},
+    {t:'TOOL REGISTRY (275+)',s:'OK',  d:480},
+    {t:'VOICE ENGINE        ',s:'OK',  d:660},
+    {t:'SECURE CHANNEL      ',s:'OK',  d:830},
+    {t:'────────────────────',s:'',    d:980},
+    {t:'JARVIS ONLINE.      ',s:'',    d:1100,gold:true},
+  ];
+  var term=document.getElementById('bt-term'), bar=document.getElementById('bt-bar');
+  BL.forEach(function(l,i){
+    setTimeout(function(){
+      var el=document.createElement('div'); el.className='bt-line';
+      if(l.gold) el.style.cssText='color:#a78bfa;font-weight:700;letter-spacing:.1em';
+      el.innerHTML=l.s?l.t+'<span class="bt-ok">[ '+l.s+' ]</span>':l.t;
+      term.appendChild(el); bar.style.width=Math.round((i+1)/BL.length*100)+'%';
+    },l.d);
+  });
+})();
+</script>
+
+<!-- ── Setup Wizard ─────────────────────────────────────────────────── -->
+<div id="setup">
+<div class="setup-card">
+  <div class="setup-prog" id="setup-prog"></div>
+
+  <!-- Step 1: Welcome -->
+  <div class="setup-step active" id="step-1">
+    <div class="setup-icon">🤖</div>
+    <div class="setup-title">Welcome to JARVIS</div>
+    <div class="setup-sub">Your personal autonomous AI operating system.<br>Let's get you set up in under 2 minutes.</div>
+    <button class="setup-btn" onclick="setupNext()">Get Started →</button>
+  </div>
+
+  <!-- Step 2: Profile -->
+  <div class="setup-step" id="step-2">
+    <div class="setup-icon">👤</div>
+    <div class="setup-title">What should I call you?</div>
+    <input class="setup-input" id="setup-name" placeholder="Your name" autocomplete="off">
+    <input class="setup-input" id="setup-email" placeholder="Email address (optional)" type="email">
+    <button class="setup-btn" onclick="setupNext()">Continue →</button>
+  </div>
+
+  <!-- Step 3: Permissions -->
+  <div class="setup-step" id="step-3">
+    <div class="setup-icon">🔐</div>
+    <div class="setup-title">System Permissions</div>
+    <div class="setup-sub">JARVIS needs these to function fully.</div>
+    <div class="setup-perm-row" id="perm-mic">
+      <div class="setup-perm-icon">🎙️</div>
+      <div class="setup-perm-info"><strong>Microphone</strong><span>Voice commands &amp; wake word</span></div>
+      <button class="setup-perm-status" id="perm-mic-btn" onclick="reqPerm('mic')">Allow</button>
+    </div>
+    <div class="setup-perm-row" id="perm-loc">
+      <div class="setup-perm-icon">📍</div>
+      <div class="setup-perm-info"><strong>Location</strong><span>Weather &amp; local context</span></div>
+      <button class="setup-perm-status" id="perm-loc-btn" onclick="reqPerm('loc')">Allow</button>
+    </div>
+    <div class="setup-perm-row" id="perm-cam">
+      <div class="setup-perm-icon">📷</div>
+      <div class="setup-perm-info"><strong>Camera</strong><span>Face auth &amp; visual AI (optional)</span></div>
+      <button class="setup-perm-status" id="perm-cam-btn" onclick="reqPerm('cam')">Allow</button>
+    </div>
+    <div class="setup-perm-row" id="perm-apps">
+      <div class="setup-perm-icon">📲</div>
+      <div class="setup-perm-info"><strong>App &amp; Device Data</strong><span>Read running apps, clipboard, system stats &amp; usage — stored locally only, never uploaded</span></div>
+      <button class="setup-perm-status perm-granted" id="perm-apps-btn" onclick="reqPerm('apps')">Granted</button>
+    </div>
+    <div style="font-size:.7rem;color:var(--text2);text-align:center;padding:0 12px;line-height:1.5">
+      By continuing you agree to JARVIS's
+      <a href="#" onclick="showPrivacy()" style="color:var(--accent)">Privacy Policy</a>.
+      All data is processed and stored <strong>locally on this device</strong>. Nothing is sent to external servers except AI inference (Groq API) and optional integrations you explicitly configure.
+    </div>
+    <button class="setup-btn" onclick="setupNext()">Continue →</button>
+    <button class="setup-btn-sec" onclick="setupNext()">Skip for now</button>
+  </div>
+
+  <!-- Step 4: Voice Enroll -->
+  <div class="setup-step" id="step-4">
+    <div class="setup-icon">🔊</div>
+    <div class="setup-title">Voice Authentication</div>
+    <div class="setup-sub">Say the phrase below 3 times to enroll your voice. This ensures only you can control JARVIS.</div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;font-family:monospace;font-size:.95rem;color:var(--accent)">"Hey JARVIS, activate"</div>
+    <button class="setup-btn" id="enroll-btn" onclick="enrollVoice()">🎤 Start Voice Enrollment</button>
+    <div id="enroll-status" style="font-size:.8rem;color:var(--text2);text-align:center;min-height:20px"></div>
+    <button class="setup-btn-sec" onclick="setupNext()">Skip voice auth</button>
+  </div>
+
+  <!-- Step 5: Gmail -->
+  <div class="setup-step" id="step-5">
+    <div class="setup-icon">📧</div>
+    <div class="setup-title">Connect Gmail</div>
+    <div class="setup-sub">Connect your Google account for email, calendar, and contacts access via secure OAuth2.</div>
+    <button class="setup-btn" onclick="connectGoogle()">🔗 Connect Google Account</button>
+    <div id="gmail-status" style="font-size:.8rem;color:var(--text2);text-align:center;min-height:20px"></div>
+    <button class="setup-btn-sec" onclick="setupNext()">Skip for now</button>
+  </div>
+
+  <!-- Step 6: Phone -->
+  <div class="setup-step" id="step-6">
+    <div class="setup-icon">📱</div>
+    <div class="setup-title">Your Phone Number</div>
+    <div class="setup-sub">Used for SMS notifications and alerts. Completely optional.</div>
+    <input class="setup-input" id="setup-phone" placeholder="+91 XXXXX XXXXX" type="tel">
+    <button class="setup-btn" onclick="setupNext()">Continue →</button>
+    <button class="setup-btn-sec" onclick="setupNext()">Skip</button>
+  </div>
+
+  <!-- Step 7: Password -->
+  <div class="setup-step" id="step-7">
+    <div class="setup-icon">🔒</div>
+    <div class="setup-title">Create a Password</div>
+    <div class="setup-sub">This password lets you log in from any device on your network.</div>
+    <input class="setup-input" id="setup-pw" placeholder="Choose a password" type="password">
+    <input class="setup-input" id="setup-pw2" placeholder="Confirm password" type="password">
+    <button class="setup-btn" onclick="finishSetup()">Create JARVIS →</button>
+  </div>
+
+  <!-- Step 8: Done -->
+  <div class="setup-step" id="step-8">
+    <div class="setup-icon">✅</div>
+    <div class="setup-title">You're all set!</div>
+    <div class="setup-sub" id="setup-done-msg">JARVIS is ready. All systems initialised.</div>
+    <button class="setup-btn" onclick="enterApp()">Launch JARVIS →</button>
+  </div>
+</div>
+</div>
+
+<!-- ── Login Screen ──────────────────────────────────────────────────── -->
+<div id="login">
+<div class="login-card">
+  <div class="login-logo">J·A·R·V·I·S</div>
+  <div class="login-sub">PERSONAL AI OS</div>
+  <div>
+    <div class="field-label">Password</div>
+    <input class="field-input" id="login-pw" type="password" placeholder="Enter your password"
+      onkeydown="if(event.key==='Enter')doLogin()">
+  </div>
+  <button class="btn-primary" style="width:100%" onclick="doLogin()">Login</button>
+  <div id="login-err" style="font-size:.8rem;color:var(--red);text-align:center;min-height:18px"></div>
+</div>
+</div>
+
+<!-- ── Main App ──────────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-logo">
+      <span class="sb-logo-icon">◈</span>
+      <span class="sb-logo-text">JARVIS</span>
+    </div>
+    <nav class="sb-nav" id="sb-nav">
+      <div class="sb-item active" data-panel="chat" onclick="showPanel('chat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span class="sb-item-label">Chat</span>
+      </div>
+      <div class="sb-item" data-panel="voice" onclick="showPanel('voice')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        <span class="sb-item-label">Voice</span>
+      </div>
+      <div class="sb-item" data-panel="email" onclick="showPanel('email')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <span class="sb-item-label">Email</span>
+        <span class="sb-badge" id="badge-email" style="display:none">0</span>
+      </div>
+      <div class="sb-item" data-panel="contacts" onclick="showPanel('contacts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="sb-item-label">Contacts</span>
+      </div>
+      <div class="sb-item" data-panel="calendar" onclick="showPanel('calendar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="sb-item-label">Calendar</span>
+      </div>
+      <div class="sb-item" data-panel="notes" onclick="showPanel('notes')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span class="sb-item-label">Notes</span>
+      </div>
+      <div class="sb-item" data-panel="files" onclick="showPanel('files')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="sb-item-label">Files</span>
+      </div>
+      <div class="sb-item" data-panel="automation" onclick="showPanel('automation')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+        <span class="sb-item-label">Automation</span>
+      </div>
+      <div class="sb-item" data-panel="research" onclick="showPanel('research')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="sb-item-label">Research</span>
+      </div>
+      <div class="sb-item" data-panel="security" onclick="showPanel('security')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span class="sb-item-label">Security</span>
+      </div>
+      <div class="sb-item" data-panel="settings" onclick="showPanel('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="sb-item-label">Settings</span>
+      </div>
+    </nav>
+    <div class="sb-status" onclick="showPanel('settings')">
+      <div class="sb-dot" id="sb-dot"></div>
+      <span class="sb-status-text" id="sb-status-text">Online</span>
+    </div>
+  </div>
+
+  <!-- Content Panels -->
+  <div id="content">
+
+    <!-- ── CHAT ─────────────────────────────────────────────────────── -->
+    <div class="panel active" id="panel-chat">
+      <!-- Orb + AI badge -->
+      <div class="chat-orb-area">
+        <canvas id="orb-canvas" width="160" height="160" title="Click to interrupt — or press Escape"></canvas>
+        <div class="state-label" id="state-label">IDLE</div>
+        <!-- Voice listening wave — shown when state=listening -->
+        <div id="voice-wave">
+          <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+          <div class="vbar"></div><div class="vbar"></div>
+        </div>
+        <div id="ai-badge" style="font-size:.6rem;font-family:monospace;color:#06b6d466;margin-top:2px;letter-spacing:.08em">GEMINI 2.5 FLASH</div>
+      </div>
+
+      <!-- Chat messages -->
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="bubble sys">JARVIS online — say "Jarvis" or type below</div>
+      </div>
+
+      <!-- Suggestion chips — Gemini-style quick actions -->
+      <div id="chips" style="display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 6px;justify-content:center">
+        <button class="chip" onclick="quickCmd('Good morning briefing')">Morning brief</button>
+        <button class="chip" onclick="quickCmd('weather')">Weather</button>
+        <button class="chip" onclick="quickCmd('word of the day')">Word of day</button>
+        <button class="chip" onclick="quickCmd('random fact')">Random fact</button>
+        <button class="chip" onclick="quickCmd('pomodoro status')">Pomodoro</button>
+        <button class="chip" onclick="quickCmd('list habits today')">Habits</button>
+        <button class="chip" onclick="quickCmd('productivity score')">Productivity</button>
+        <button class="chip" onclick="quickCmd('phone link')">Phone link</button>
+      </div>
+
+      <!-- Input bar -->
+      <div class="chat-bar">
+        <input type="file" id="file-input" multiple onchange="handleFileUpload(event)">
+        <div class="chat-bar-inner">
+          <button class="btn-icon btn-clip" onclick="document.getElementById('file-input').click()" title="Attach file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <textarea id="chat-input" placeholder="Ask JARVIS anything…" rows="1"
+            onkeydown="chatKeydown(event)" oninput="autoResize(this)"></textarea>
+        </div>
+        <button class="btn-icon btn-stop" id="btn-stop" onclick="stopResponse()" title="Stop (Escape)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        </button>
+        <button class="btn-icon btn-send" id="btn-send" onclick="sendChat()" title="Send">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="device-bar">
+        <div class="dev-dot" id="dev-dot"></div>
+        <span id="dev-label">No remote devices</span>
+        <span style="margin-left:auto" id="dev-qr-link"></span>
+      </div>
+    </div>
+
+    <!-- ── VOICE ─────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-voice">
+      <div class="panel-header">
+        <span class="panel-title">Voice Settings</span>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <div class="section-title">Voice Status</div>
+          <div class="card" style="display:flex;align-items:center;gap:16px">
+            <div class="voice-wave" id="voice-wave-vis">
+              <div class="wave-bar" style="height:40%"></div>
+              <div class="wave-bar" style="height:60%"></div>
+              <div class="wave-bar" style="height:90%"></div>
+              <div class="wave-bar" style="height:70%"></div>
+              <div class="wave-bar" style="height:50%"></div>
+            </div>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px" id="voice-status-text">Listening for wake word</div>
+              <div style="font-size:.78rem;color:var(--text2)">Say "Jarvis" to activate</div>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Voice Enrollment</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:.85rem;color:var(--text2)">Enroll your voice for secure authentication. Speak the wake phrase 3 times.</div>
+            <button class="btn-primary" onclick="enrollVoicePanel()" id="enroll-panel-btn">🎤 Enroll Voice</button>
+            <div id="enroll-panel-status" style="font-size:.8rem;color:var(--text2)"></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Voice Settings</div>
+          <div class="card">
+            <div class="setting-row">
+              <div class="setting-info"><strong>Wake Word Detection</strong><small>Continuously listen for "Jarvis"</small></div>
+              <label class="toggle"><input type="checkbox" id="tog-wake" checked><div class="toggle-slider"></div></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Voice Auth Required</strong><small>Verify voice before sensitive commands</small></div>
+              <label class="toggle"><input type="checkbox" id="tog-vauth"><div class="toggle-slider"></div></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Speak Responses</strong><small>JARVIS reads responses aloud</small></div>
+              <label class="toggle"><input type="checkbox" id="tog-speak" checked><div class="toggle-slider"></div></label>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Import Contacts</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:.85rem;color:var(--text2)">Import contacts from Phone Link (Windows) or vCard files.</div>
+            <button class="btn-ghost" onclick="importContacts()">📲 Import from Phone Link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EMAIL ─────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-email">
+      <div class="panel-header">
+        <span class="panel-title">Email</span>
+        <div class="ph-actions">
+          <button class="btn-ghost btn-sm" onclick="loadEmails()">↻ Refresh</button>
+          <button class="btn-primary btn-sm" onclick="openComposeModal()">✉ Compose</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="email-list" style="display:flex;flex-direction:column;gap:8px">
+          <div class="bubble sys">Loading emails…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CONTACTS ───────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-contacts">
+      <div class="panel-header">
+        <span class="panel-title">Contacts</span>
+        <div class="ph-actions">
+          <button class="btn-ghost btn-sm" onclick="importContacts()">📲 Import</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div style="margin-bottom:12px">
+          <input class="field-input" placeholder="🔍 Search contacts…" oninput="filterContacts(this.value)">
+        </div>
+        <div id="contacts-list" style="display:flex;flex-direction:column;gap:8px">
+          <div class="bubble sys">Loading contacts…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CALENDAR ───────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-calendar">
+      <div class="panel-header">
+        <span class="panel-title">Calendar</span>
+        <div class="ph-actions">
+          <button class="btn-ghost btn-sm" onclick="loadEvents()">↻ Refresh</button>
+          <button class="btn-primary btn-sm" onclick="openEventModal()">+ Event</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="events-list" style="display:flex;flex-direction:column;gap:8px">
+          <div class="bubble sys">Loading events…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NOTES ─────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-notes">
+      <div class="panel-header">
+        <span class="panel-title">Notes</span>
+        <div class="ph-actions">
+          <input class="field-input btn-sm" style="width:160px" placeholder="🔍 Search…" oninput="searchNotes(this.value)">
+          <button class="btn-primary btn-sm" onclick="openNoteModal()">+ Note</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="notes-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+          <div class="bubble sys">Loading notes…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FILES ─────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-files">
+      <div class="panel-header">
+        <span class="panel-title">Files</span>
+        <div class="ph-actions">
+          <button class="btn-primary btn-sm" onclick="document.getElementById('file-input').click()">↑ Upload</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="card" style="text-align:center;padding:40px;display:flex;flex-direction:column;align-items:center;gap:14px;border-style:dashed;cursor:pointer"
+          onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div style="color:var(--text2);font-size:.875rem">Drop files here or click to upload<br><span style="font-size:.75rem;color:var(--text3)">JARVIS will summarise and process them</span></div>
+        </div>
+        <div id="files-list" style="margin-top:16px;display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+
+    <!-- ── AUTOMATION ─────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-automation">
+      <div class="panel-header">
+        <span class="panel-title">Desktop Automation</span>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <div class="section-title">Quick Actions</div>
+          <div class="auto-grid">
+            <div class="auto-btn" onclick="autoCmd('take a screenshot')"><span class="icon">📸</span>Screenshot</div>
+            <div class="auto-btn" onclick="autoCmd('get mouse position')"><span class="icon">🖱️</span>Mouse Pos</div>
+            <div class="auto-btn" onclick="autoModal('type')"><span class="icon">⌨️</span>Type Text</div>
+            <div class="auto-btn" onclick="autoModal('hotkey')"><span class="icon">⚡</span>Hotkey</div>
+            <div class="auto-btn" onclick="autoModal('click')"><span class="icon">👆</span>Click</div>
+            <div class="auto-btn" onclick="autoModal('focus')"><span class="icon">🪟</span>Focus App</div>
+            <div class="auto-btn" onclick="autoCmd('list open windows')"><span class="icon">📋</span>Windows</div>
+            <div class="auto-btn" onclick="autoCmd('open task manager')"><span class="icon">📊</span>Task Mgr</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Custom Command</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:10px">
+            <textarea class="field-input" id="auto-cmd-input" placeholder="e.g. click on the Chrome icon, type hello world, press ctrl+c…" rows="3"></textarea>
+            <button class="btn-primary" onclick="runAutoCmd()">▶ Execute</button>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Output</div>
+          <div id="auto-output" class="card" style="font-family:monospace;font-size:.8rem;color:var(--text2);min-height:60px;white-space:pre-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RESEARCH ───────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-research">
+      <div class="panel-header">
+        <span class="panel-title">Research &amp; Intelligence</span>
+        <div class="ph-actions">
+          <button class="btn-ghost btn-sm" onclick="loadNews()">↻ News</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <div class="section-title">Web Search</div>
+          <div style="display:flex;gap:8px">
+            <input class="field-input" id="search-input" placeholder="Search the web…" style="flex:1"
+              onkeydown="if(event.key==='Enter')doSearch()">
+            <button class="btn-primary" onclick="doSearch()">Search</button>
+          </div>
+          <div id="search-result" style="margin-top:12px;display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Latest News</div>
+          <div id="news-list" style="display:flex;flex-direction:column;gap:8px">
+            <div class="bubble sys">Click ↻ News to load headlines</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Deep Research</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:10px">
+            <textarea class="field-input" id="research-input" placeholder="What topic should I research in depth?" rows="3"></textarea>
+            <button class="btn-primary" onclick="doDeepResearch()">🔬 Deep Research</button>
+            <div id="research-result" style="font-size:.85rem;color:var(--text2);white-space:pre-wrap"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECURITY ───────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-security">
+      <div class="panel-header">
+        <span class="panel-title">Security &amp; Vault</span>
+        <div class="ph-actions">
+          <button class="btn-primary btn-sm" onclick="openVaultModal()">+ Add Password</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <div class="section-title">Password Vault</div>
+          <div style="margin-bottom:10px">
+            <input class="field-input" placeholder="🔍 Search vault…" oninput="searchVault(this.value)">
+          </div>
+          <div id="vault-list" style="display:flex;flex-direction:column;gap:8px">
+            <div class="bubble sys">Loading vault…</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Security Status</div>
+          <div class="card">
+            <div class="setting-row">
+              <div class="setting-info"><strong>Voice Auth</strong><small>Biometric voice verification</small></div>
+              <span class="tag tag-green" id="sec-voice-status">Enrolled</span>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Gmail OAuth</strong><small>Google account connected</small></div>
+              <span class="tag" id="sec-gmail-status">Checking…</span>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Vault Encryption</strong><small>AES-256 Fernet encryption</small></div>
+              <span class="tag tag-green">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ───────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-settings">
+      <div class="panel-header">
+        <span class="panel-title">Settings</span>
+      </div>
+      <div class="panel-body">
+        <div class="section">
+          <div class="section-title">Account</div>
+          <div class="card">
+            <div class="setting-row">
+              <div class="setting-info"><strong id="settings-name">User</strong><small id="settings-email">Not configured</small></div>
+              <button class="btn-ghost btn-sm" onclick="showPanel('voice')">Edit</button>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Remote Access</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:.85rem;color:var(--text2)">Scan to open JARVIS on your phone:</div>
+            <div id="qr-container" style="display:flex;justify-content:center">
+              <canvas id="qr-canvas" width="140" height="140" style="border-radius:8px;background:#fff;padding:8px"></canvas>
+            </div>
+            <div id="remote-url" style="font-size:.75rem;color:var(--text3);text-align:center"></div>
+            <div style="font-size:.75rem;color:var(--text2)">Connected devices: <strong id="connected-count">0</strong></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">AI Settings</div>
+          <div class="card">
+            <div class="setting-row">
+              <div class="setting-info"><strong>Auto-translate</strong><small>Translate responses to another language</small></div>
+              <label class="toggle"><input type="checkbox" id="tog-translate"><div class="toggle-slider"></div></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Briefing on Start</strong><small>Daily summary when JARVIS loads</small></div>
+              <label class="toggle"><input type="checkbox" id="tog-briefing" checked><div class="toggle-slider"></div></label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Proactive Suggestions</strong><small>JARVIS suggests actions based on context</small></div>
+              <label class="toggle"><input type="checkbox" id="tog-proactive" checked><div class="toggle-slider"></div></label>
+            </div>
+          </div>
+        </div>
+        <!-- Windows App Registration -->
+        <div class="section">
+          <div class="section-title">Windows Integration</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:.8rem;color:var(--text2)">
+              AI Engine: <strong id="ai-engine-label" style="color:var(--accent)">Detecting…</strong>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Set as Default Assistant</strong>
+                <small>Register JARVIS in Windows Settings → Default Apps</small></div>
+              <button class="btn-ghost btn-sm" onclick="apiCmd('register as default assistant')">Register</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Run at Startup</strong>
+                <small>Launch JARVIS automatically when Windows starts</small></div>
+              <button class="btn-ghost btn-sm" onclick="apiCmd('register windows startup')">Enable</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Windows Contacts</strong>
+                <small>Sync contacts from the Windows People app</small></div>
+              <button class="btn-ghost btn-sm" onclick="apiCmd('get windows contacts')">Sync</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>Open Default Apps</strong>
+                <small>Set JARVIS as default in Windows Settings</small></div>
+              <button class="btn-ghost btn-sm" onclick="apiCmd('open windows settings default apps')">Open Settings</button>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Integrations</div>
+          <div class="card" style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn-ghost" onclick="apiCmd('connect google account')">Connect / Reconnect Google</button>
+            <button class="btn-ghost" onclick="importContacts()">Import Phone Contacts</button>
+            <button class="btn-ghost" onclick="apiCmd('phone link')">Phone Remote Link</button>
+            <button class="btn-danger btn-sm" style="align-self:flex-start" onclick="logout()">Log out</button>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">System</div>
+          <div class="card">
+            <div class="setting-row">
+              <div class="setting-info"><strong>CPU</strong><small id="sys-cpu">—</small></div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>RAM</strong><small id="sys-ram">—</small></div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info"><strong>AI Backend</strong><small id="sys-api">Detecting…</small></div>
+              <span class="tag tag-green" id="ai-backend-tag">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<!-- ── Modals ────────────────────────────────────────────────────────── -->
+<!-- Compose Email -->
+<div class="modal-overlay" id="modal-compose">
+<div class="modal">
+  <div class="modal-title">✉ Compose Email</div>
+  <div><div class="field-label">To</div><input class="field-input" id="compose-to" placeholder="recipient@email.com"></div>
+  <div><div class="field-label">Subject</div><input class="field-input" id="compose-subject" placeholder="Subject"></div>
+  <div><div class="field-label">Body</div><textarea class="field-input" id="compose-body" rows="6" placeholder="Email body…"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn-ghost" onclick="closeModal('modal-compose')">Cancel</button>
+    <button class="btn-primary" onclick="sendEmail()">Send</button>
+  </div>
+</div>
+</div>
+
+<!-- Create Event -->
+<div class="modal-overlay" id="modal-event">
+<div class="modal">
+  <div class="modal-title">📅 Create Event</div>
+  <div><div class="field-label">Title</div><input class="field-input" id="evt-title" placeholder="Meeting / Event name"></div>
+  <div><div class="field-label">When</div><input class="field-input" id="evt-when" placeholder="e.g. tomorrow 3pm, Monday 10am"></div>
+  <div><div class="field-label">Duration (minutes)</div><input class="field-input" id="evt-dur" type="number" value="60" min="5"></div>
+  <div><div class="field-label">Location (optional)</div><input class="field-input" id="evt-loc" placeholder="Office / Meet link"></div>
+  <div><div class="field-label">Notes</div><textarea class="field-input" id="evt-notes" rows="3" placeholder="Description…"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn-ghost" onclick="closeModal('modal-event')">Cancel</button>
+    <button class="btn-primary" onclick="createEvent()">Create</button>
+  </div>
+</div>
+</div>
+
+<!-- Create Note -->
+<div class="modal-overlay" id="modal-note">
+<div class="modal">
+  <div class="modal-title">📝 New Note</div>
+  <div><div class="field-label">Title</div><input class="field-input" id="note-title" placeholder="Note title"></div>
+  <div><div class="field-label">Tags</div><input class="field-input" id="note-tags" placeholder="work, ideas, personal"></div>
+  <div><div class="field-label">Content</div><textarea class="field-input" id="note-content" rows="8" placeholder="Write your note…"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn-ghost" onclick="closeModal('modal-note')">Cancel</button>
+    <button class="btn-primary" onclick="createNote()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Vault Entry -->
+<div class="modal-overlay" id="modal-vault">
+<div class="modal">
+  <div class="modal-title">🔒 Add Password</div>
+  <div><div class="field-label">Site / App</div><input class="field-input" id="vault-site" placeholder="google.com"></div>
+  <div><div class="field-label">Username / Email</div><input class="field-input" id="vault-user" placeholder="user@email.com"></div>
+  <div><div class="field-label">Password</div><input class="field-input" id="vault-pw" type="password" placeholder="Password"></div>
+  <div class="modal-footer">
+    <button class="btn-ghost" onclick="closeModal('modal-vault')">Cancel</button>
+    <button class="btn-primary" onclick="addVaultEntry()">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Automation sub-modal -->
+<div class="modal-overlay" id="modal-auto">
+<div class="modal">
+  <div class="modal-title" id="auto-modal-title">Action</div>
+  <div><div class="field-label" id="auto-modal-label">Value</div><input class="field-input" id="auto-modal-input" placeholder=""></div>
+  <div class="modal-footer">
+    <button class="btn-ghost" onclick="closeModal('modal-auto')">Cancel</button>
+    <button class="btn-primary" onclick="execAutoModal()">Execute</button>
+  </div>
+</div>
+</div>
+
+<!-- Toast container -->
+<div id="toasts"></div>
+
+<!-- ── Scripts ───────────────────────────────────────────────────────── -->
+<script>
+/* ── State & Config ─────────────────────────────────────────────────── */
+const API = '';  // same origin
+let token = localStorage.getItem('jarvis_token') || '';
+let currentPanel = 'chat';
+let wsConn = null;
+let orbAnim = null;
+let _curState = 'idle';
+let _stopFlag = false;
+let _allContacts = [];
+let _allVault = [];
+let _autoModalAction = '';
+
+const STATE_COLORS = {
+  idle:      [6,182,212],
+  listening: [16,185,129],
+  thinking:  [245,158,11],
+  speaking:  [167,139,250],
+  error:     [239,68,68]
+};
+
+/* ── Auth helpers ───────────────────────────────────────────────────── */
+function authHeaders(){return token?{Authorization:'Bearer '+token,'Content-Type':'application/json'}:{'Content-Type':'application/json'}}
+
+async function apiFetch(path,opts={}){
+  opts.headers = {...authHeaders(), ...(opts.headers||{})};
+  const r = await fetch(API+path, opts);
+  if(r.status===401){logout();return null;}
+  return r;
+}
+
+/* ── Boot ────────────────────────────────────────────────────────────── */
+window.addEventListener('load', async ()=>{
+  // PWA service worker
+  if('serviceWorker' in navigator){
+    try{await navigator.serviceWorker.register('/static/sw.js');}catch(e){}
+  }
+  // Check auth status
+  try{
+    const r = await fetch(API+'/api/auth/status');
+    const d = await r.json();
+    document.getElementById('loading').style.display='none';
+    if(!d.setup_done){
+      // First run — show setup briefly then auto-proceed if pywebview
+      if(window.pywebview){ token='local'; enterApp(); }
+      else { showSetup(); }
+    } else {
+      // Auth: try stored token, then auto-login if pywebview
+      if(token && await verifyToken()){ enterApp(); }
+      else if(window.pywebview){ token='local'; enterApp(); }
+      else { showLogin(); }
+    }
+  } catch(e){
+    // API not reachable — pywebview local mode: skip auth entirely
+    document.getElementById('loading').style.display='none';
+    token = 'local';
+    enterApp();
+  }
+});
+
+async function verifyToken(){
+  try{
+    const r = await apiFetch('/api/auth/verify');
+    if(!r) return false;
+    return r.ok;
+  }catch(e){return false;}
+}
+
+/* ── Setup Wizard ────────────────────────────────────────────────────── */
+let setupStep = 1;
+const TOTAL_STEPS = 8;
+
+function showSetup(){
+  document.getElementById('setup').style.display='flex';
+  buildProgressDots();
+  updateSetupStep();
+}
+
+function buildProgressDots(){
+  const c = document.getElementById('setup-prog');
+  c.innerHTML='';
+  for(let i=1;i<=TOTAL_STEPS;i++){
+    const d=document.createElement('div');
+    d.className='setup-prog-dot'+(i===1?' active':'');
+    d.id='dot-'+i;
+    c.appendChild(d);
+  }
+}
+
+function updateSetupStep(){
+  for(let i=1;i<=TOTAL_STEPS;i++){
+    document.getElementById('step-'+i).classList.toggle('active',i===setupStep);
+    const dot=document.getElementById('dot-'+i);
+    if(dot){
+      dot.className='setup-prog-dot'+(i<setupStep?' done':i===setupStep?' active':'');
+    }
+  }
+}
+
+function setupNext(){
+  if(setupStep<TOTAL_STEPS){setupStep++;updateSetupStep();}
+}
+
+async function reqPerm(type){
+  if(type==='apps'){
+    // App/device data is a local system permission — always granted (server-side)
+    toast('App & device data access granted — stored locally only','ok');
+    return;
+  }
+  try{
+    if(type==='mic') await navigator.mediaDevices.getUserMedia({audio:true});
+    if(type==='cam') await navigator.mediaDevices.getUserMedia({video:true});
+    if(type==='loc') await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej));
+    document.getElementById('perm-'+type+'-btn').textContent='✓ Granted';
+    document.getElementById('perm-'+type+'-btn').classList.add('ok');
+  }catch(e){toast('Permission denied','err');}
+}
+
+function showPrivacy(){
+  const html=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center" onclick="this.remove()">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:540px;width:90%;max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <h2 style="color:var(--accent);margin:0 0 12px">JARVIS Privacy Policy</h2>
+    <p style="font-size:.85rem;color:var(--text2);line-height:1.6">
+      <strong style="color:var(--text)">Data stored locally:</strong> All notes, todos, habits, journal entries, contacts,
+      voice profile, passwords vault, calendar events and system usage data are stored exclusively
+      in <code>C:\\JARVISCore\\memory\\</code> on your device. This data never leaves your machine.<br><br>
+      <strong style="color:var(--text)">AI inference:</strong> Your chat messages are sent to the Groq API (groq.com)
+      for language model inference. No conversation history is stored server-side by Groq beyond their
+      standard retention policy.<br><br>
+      <strong style="color:var(--text)">Optional integrations:</strong> Gmail (OAuth2), Google Calendar (OAuth2),
+      WhatsApp (pywhatkit), Telegram, GitHub — each enabled only when you explicitly connect them.
+      Tokens are stored locally in <code>memory/</code>.<br><br>
+      <strong style="color:var(--text)">App &amp; Device Data:</strong> JARVIS reads running processes,
+      clipboard contents, system performance metrics, installed app names, and network status to
+      provide contextual assistance. This data is processed locally and never uploaded.<br><br>
+      <strong style="color:var(--text)">No analytics, no telemetry, no advertising.</strong>
+    </p>
+    <button onclick="this.closest('[style]').remove()" style="background:var(--accent);color:#000;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-weight:700">Got it</button>
+  </div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
+async function connectGoogle(){
+  document.getElementById('gmail-status').textContent='Opening browser for Google OAuth…';
+  const r = await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'setup_google_auth',args:{}})});
+  if(r){const d=await r.json();document.getElementById('gmail-status').textContent=d.result||'Done';}
+  setupNext();
+}
+
+async function enrollVoice(){
+  const btn=document.getElementById('enroll-btn');
+  const st=document.getElementById('enroll-status');
+  btn.textContent='⏺ Enrolling…';btn.disabled=true;
+  try{
+    if(window.pywebview){await window.pywebview.api.enroll_voice();}
+    else{await apiFetch('/api/enroll_voice',{method:'POST'});}
+    st.textContent='✓ Voice enrolled successfully!';st.style.color='var(--green)';
+    setTimeout(setupNext,1200);
+  }catch(e){st.textContent='Failed — try again';st.style.color='var(--red)';}
+  finally{btn.textContent='🎤 Start Voice Enrollment';btn.disabled=false;}
+}
+
+async function finishSetup(){
+  const pw=document.getElementById('setup-pw').value;
+  const pw2=document.getElementById('setup-pw2').value;
+  if(pw!==pw2){toast('Passwords do not match','err');return;}
+  if(pw.length<4){toast('Password too short','err');return;}
+  const name=document.getElementById('setup-name').value||'User';
+  const email=document.getElementById('setup-email').value||'';
+  const phone=document.getElementById('setup-phone').value||'';
+  try{
+    const r=await fetch(API+'/api/auth/setup',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,password:pw,email,phone})});
+    const d=await r.json();
+    token=d.token||''; localStorage.setItem('jarvis_token',token);
+    document.getElementById('setup-done-msg').textContent=`Welcome, ${name}! JARVIS is ready.`;
+    setupStep=8;updateSetupStep();
+  }catch(e){toast('Setup failed: '+e,'err');}
+}
+
+function enterApp(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').classList.add('visible');
+  initApp();
+}
+
+/* ── Login ───────────────────────────────────────────────────────────── */
+function showLogin(){
+  document.getElementById('login').style.display='flex';
+}
+
+async function doLogin(){
+  const pw=document.getElementById('login-pw').value;
+  const err=document.getElementById('login-err');
+  err.textContent='';
+  try{
+    const r=await fetch(API+'/api/auth/login',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({password:pw})});
+    const d=await r.json();
+    if(d.token){token=d.token;localStorage.setItem('jarvis_token',token);enterApp();}
+    else{err.textContent=d.error||'Incorrect password';}
+  }catch(e){err.textContent='Cannot connect to JARVIS';}
+}
+
+function logout(){
+  token='';localStorage.removeItem('jarvis_token');
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-pw').value='';
+  showLogin();
+}
+
+/* ── App Init ────────────────────────────────────────────────────────── */
+function initApp(){
+  initOrb();
+  connectWS();
+  loadUserInfo();
+  loadRemoteInfo();
+  refreshStatus();
+  setInterval(refreshStatus, 30000);
+  // Lazy-load panel data when switching to it for first time
+}
+
+async function loadUserInfo(){
+  try{
+    const r=await apiFetch('/api/user');
+    if(!r)return;
+    const d=await r.json();
+    document.getElementById('settings-name').textContent=d.name||'User';
+    document.getElementById('settings-email').textContent=d.email||'—';
+  }catch(e){}
+}
+
+async function loadRemoteInfo(){
+  try{
+    if(window.pywebview){
+      const info=await window.pywebview.api.get_remote_info();
+      setQR(info.url||'');
+      document.getElementById('remote-url').textContent=info.url||'';
+      document.getElementById('dev-qr-link').innerHTML=`<a href="${info.url}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:.72rem">Open remote →</a>`;
+    } else {
+      const r=await apiFetch('/api/remote_info');
+      if(!r)return;
+      const info=await r.json();
+      setQR(info.url||'');
+      document.getElementById('remote-url').textContent=info.url||'';
+    }
+  }catch(e){}
+}
+
+async function refreshStatus(){
+  try{
+    const r=await apiFetch('/api/status');
+    if(!r)return;
+    const d=await r.json();
+    document.getElementById('sys-cpu').textContent=(d.cpu||'—')+'% CPU';
+    document.getElementById('sys-ram').textContent=(d.ram||'—')+'% RAM';
+    document.getElementById('sec-gmail-status').textContent=d.gmail?'Connected':'Not connected';
+    document.getElementById('sec-gmail-status').className='tag '+(d.gmail?'tag-green':'tag-red');
+    document.getElementById('sec-voice-status').textContent=d.voice_enrolled?'Enrolled':'Not enrolled';
+    document.getElementById('sec-voice-status').className='tag '+(d.voice_enrolled?'tag-green':'tag-amber');
+    // Update AI model badge (orb area)
+    const badge=document.getElementById('ai-badge');
+    if(badge&&d.ai_model){
+      badge.textContent=(d.ai_backend||'AI').toUpperCase()+' · '+(d.ai_model||'').replace('models/','').toUpperCase();
+    }
+    // Update settings panel AI info
+    const engLbl=document.getElementById('ai-engine-label');
+    if(engLbl&&d.ai_backend){
+      const modelShort=(d.ai_model||'').replace('models/','').replace('gemini-','Gemini ').replace('llama','Llama');
+      engLbl.textContent=modelShort||d.ai_backend;
+    }
+    const apiLbl=document.getElementById('sys-api');
+    if(apiLbl&&d.ai_backend){
+      apiLbl.textContent=(d.ai_backend||'').toUpperCase()+' — '+(d.ai_model||'').replace('models/','');
+    }
+    const beTag=document.getElementById('ai-backend-tag');
+    if(beTag){
+      const isGemini=(d.ai_backend||'').includes('gemini');
+      beTag.textContent=isGemini?'Free':'Active';
+      beTag.className='tag '+(isGemini?'tag-green':'tag-amber');
+    }
+  }catch(e){}
+}
+
+/* ── WebSocket ───────────────────────────────────────────────────────── */
+function connectWS(){
+  const proto=location.protocol==='https:'?'wss:':'ws:';
+  const host=location.host||'localhost:8100';
+  wsConn=new WebSocket(proto+'//'+host+'/ws');
+  wsConn.onopen=()=>{
+    wsConn.send(JSON.stringify({type:'hello',label:'Main UI'}));
+  };
+  wsConn.onmessage=e=>{
+    try{
+      const d=JSON.parse(e.data);
+      if(d.type==='state') setOrbState(d.state);
+      else if(d.type==='response') addMessage(d.text,'jarvis');
+      else if(d.type==='devices') updateDevices(d.devices||[]);
+      else if(d.type==='push') addMessage('📡 '+d.text,'sys');
+    }catch(ex){}
+  };
+  wsConn.onclose=()=>setTimeout(connectWS,3000);
+  wsConn.onerror=()=>wsConn.close();
+}
+
+/* ── Chat ────────────────────────────────────────────────────────────── */
+function chatKeydown(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}
+}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px';}
+
+async function sendChat(){
+  const inp=document.getElementById('chat-input');
+  const text=inp.value.trim();if(!text)return;
+  inp.value='';inp.style.height='auto';
+  addMessage(text,'user');
+  setOrbState('thinking');
+  document.getElementById('btn-stop').classList.add('visible');
+  document.getElementById('btn-send').style.display='none';
+  _stopFlag=false;
+  try{
+    const r=await apiFetch('/api/chat',{method:'POST',body:JSON.stringify({message:text,token})});
+    if(!r||_stopFlag){setOrbState('idle');return;}
+    const d=await r.json();
+    addMessage(d.response||d.error||'…','jarvis');
+  }catch(e){addMessage('Connection error','error');}
+  finally{
+    document.getElementById('btn-stop').classList.remove('visible');
+    document.getElementById('btn-send').style.display='flex';
+    setOrbState('idle');
+  }
+}
+
+function stopResponse(){
+  _stopFlag=true;
+  apiFetch('/api/stop',{method:'POST'}).catch(()=>{});
+  setOrbState('idle');
+  document.getElementById('btn-stop').classList.remove('visible');
+  document.getElementById('btn-send').style.display='flex';
+  addMessage('Interrupted.','sys');
+}
+
+/* ── Quick command chips ───────────────────────────────────────────── */
+function quickCmd(cmd){
+  document.getElementById('chat-input').value=cmd;
+  sendChat();
+}
+
+function addMessage(text,tag){
+  const c=document.getElementById('chat-msgs');
+  const d=document.createElement('div');
+  d.className='bubble '+(tag==='user'?'user':tag==='jarvis'?'jarvis':tag==='error'?'error':'sys');
+  // Simple markdown: code blocks, bold, italic
+  d.innerHTML=formatMsg(text);
+  c.appendChild(d);
+  c.scrollTop=c.scrollHeight;
+}
+
+function formatMsg(t){
+  t=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  t=t.replace(/```([\s\S]*?)```/g,'<pre>$1</pre>');
+  t=t.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:monospace">$1</code>');
+  t=t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  t=t.replace(/\*(.+?)\*/g,'<em>$1</em>');
+  t=t.replace(/\n/g,'<br>');
+  return t;
+}
+
+// Allow calling from Python (pywebview)
+window.addMessage = addMessage;
+
+async function apiCmd(cmd){
+  showPanel('chat');
+  document.getElementById('chat-input').value=cmd;
+  await sendChat();
+}
+
+async function handleFileUpload(e){
+  const files=e.target.files;if(!files.length)return;
+  for(const f of files){
+    const fd=new FormData();fd.append('file',f);
+    addMessage(`Uploading ${f.name}…`,'sys');
+    try{
+      const r=await fetch(API+'/api/upload',{method:'POST',
+        headers:{Authorization:'Bearer '+token},body:fd});
+      const d=await r.json();
+      addMessage(d.response||'File processed.','jarvis');
+    }catch(ex){addMessage('Upload failed','error');}
+  }
+  e.target.value='';
+}
+
+function handleDrop(e){
+  e.preventDefault();
+  const files=e.dataTransfer.files;
+  if(files.length){document.getElementById('file-input').files=files;handleFileUpload({target:document.getElementById('file-input')});}
+}
+
+/* ── Panel switching ─────────────────────────────────────────────────── */
+const _panelLoaded={};
+function showPanel(name){
+  currentPanel=name;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById('panel-'+name)?.classList.add('active');
+  document.querySelector(`[data-panel="${name}"]`)?.classList.add('active');
+  if(!_panelLoaded[name]){_panelLoaded[name]=true;loadPanel(name);}
+}
+
+function loadPanel(name){
+  switch(name){
+    case 'email':    loadEmails();break;
+    case 'contacts': loadContacts();break;
+    case 'calendar': loadEvents();break;
+    case 'notes':    loadNotes();break;
+    case 'security': loadVault();break;
+    case 'settings': loadRemoteInfo();break;
+  }
+}
+
+/* ── Email Panel ─────────────────────────────────────────────────────── */
+async function loadEmails(){
+  const c=document.getElementById('email-list');
+  c.innerHTML='<div class="bubble sys">Loading…</div>';
+  try{
+    const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'read_emails',args:{n:20}})});
+    if(!r)return;
+    const d=await r.json();
+    const txt=d.result||'';
+    const lines=txt.split('\n').filter(l=>l.trim());
+    if(!lines.length||txt.includes('No emails')){c.innerHTML='<div class="bubble sys">No emails found.</div>';return;}
+    c.innerHTML=lines.map((l,i)=>{
+      const m=l.match(/From:(.*?)Subject:(.*?)$/i);
+      const from=m?m[1].trim():'Unknown';
+      const subj=m?m[2].trim():l.replace(/^\d+\.\s*/,'');
+      const initials=(from.split(' ')[0]||'?')[0].toUpperCase();
+      return `<div class="email-item ${i<3?'unread':''}">
+        <div class="email-avatar">${initials}</div>
+        <div class="email-info">
+          <div class="email-from">${from}</div>
+          <div class="email-subject">${subj}</div>
+        </div>
+        <div class="email-meta"><div class="email-time">—</div></div>
+      </div>`;
+    }).join('');
+  }catch(e){c.innerHTML='<div class="bubble sys">Could not load emails.</div>';}
+}
+
+function openComposeModal(){openModal('modal-compose');}
+
+async function sendEmail(){
+  const to=document.getElementById('compose-to').value;
+  const sub=document.getElementById('compose-subject').value;
+  const body=document.getElementById('compose-body').value;
+  if(!to||!sub||!body){toast('Fill all fields','err');return;}
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'send_email',args:{to,subject:sub,body}})});
+  if(r){const d=await r.json();toast(d.result||'Sent','ok');closeModal('modal-compose');}
+}
+
+/* ── Contacts Panel ──────────────────────────────────────────────────── */
+async function loadContacts(){
+  const c=document.getElementById('contacts-list');
+  c.innerHTML='<div class="bubble sys">Loading…</div>';
+  try{
+    const r=await apiFetch('/api/contacts');
+    if(!r)return;
+    _allContacts=await r.json();
+    renderContacts(_allContacts);
+  }catch(e){c.innerHTML='<div class="bubble sys">No contacts found. Import from Phone Link.</div>';}
+}
+
+function renderContacts(contacts){
+  const c=document.getElementById('contacts-list');
+  if(!contacts.length){c.innerHTML='<div class="bubble sys">No contacts.</div>';return;}
+  c.innerHTML=contacts.map(ct=>`
+    <div class="list-item">
+      <div class="list-item-icon">👤</div>
+      <div class="list-item-main">
+        <div class="list-item-title">${ct.name||'Unknown'}</div>
+        <div class="list-item-sub">${ct.phone||ct.email||'—'}</div>
+      </div>
+      <div class="list-item-actions">
+        ${ct.phone?`<button class="btn-ghost btn-sm" onclick="apiCmd('send sms to ${ct.name}')">💬</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function filterContacts(q){
+  const f=q.toLowerCase();
+  renderContacts(_allContacts.filter(c=>(c.name||'').toLowerCase().includes(f)||(c.phone||'').includes(f)));
+}
+
+async function importContacts(){
+  toast('Importing contacts…','info');
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'import_phone_contacts',args:{}})});
+  if(r){const d=await r.json();toast(d.result||'Done','ok');loadContacts();}
+}
+
+/* ── Calendar Panel ──────────────────────────────────────────────────── */
+async function loadEvents(){
+  const c=document.getElementById('events-list');
+  c.innerHTML='<div class="bubble sys">Loading…</div>';
+  try{
+    const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'list_events',args:{days:14}})});
+    if(!r)return;
+    const d=await r.json();
+    const txt=d.result||'';
+    const lines=txt.split('\n').filter(l=>l.trim()&&!l.includes('No upcoming'));
+    if(!lines.length){c.innerHTML='<div class="bubble sys">No upcoming events.</div>';return;}
+    c.innerHTML=lines.map(l=>{
+      const m=l.match(/•\s*(.*?)\s*[—-]\s*(.*)/);
+      const title=m?m[1]:'Event';
+      const timeStr=m?m[2]:'—';
+      const parts=timeStr.split(' ');
+      return `<div class="event-item">
+        <div class="event-time-col">
+          <div class="event-time-day">${parts[1]||''}</div>
+          <div class="event-time-num">${parts[2]||'—'}</div>
+          <div class="event-time-hr">${parts[3]||''}</div>
+        </div>
+        <div class="event-bar"></div>
+        <div class="event-info">
+          <div class="event-title">${title}</div>
+          <div class="event-loc">${timeStr}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){c.innerHTML='<div class="bubble sys">Could not load events.</div>';}
+}
+
+function openEventModal(){openModal('modal-event');}
+async function createEvent(){
+  const title=document.getElementById('evt-title').value;
+  const when=document.getElementById('evt-when').value;
+  const dur=parseInt(document.getElementById('evt-dur').value)||60;
+  const loc=document.getElementById('evt-loc').value;
+  const notes=document.getElementById('evt-notes').value;
+  if(!title||!when){toast('Title and time required','err');return;}
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'create_event',args:{title,when,duration_min:dur,location:loc,description:notes}})});
+  if(r){const d=await r.json();toast(d.result||'Created','ok');closeModal('modal-event');_panelLoaded['calendar']=false;loadEvents();}
+}
+
+/* ── Notes Panel ─────────────────────────────────────────────────────── */
+async function loadNotes(){
+  const c=document.getElementById('notes-grid');
+  c.innerHTML='<div class="bubble sys">Loading…</div>';
+  try{
+    const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'list_notes',args:{}})});
+    if(!r)return;
+    const d=await r.json();
+    const txt=d.result||'';
+    const lines=txt.split('\n').filter(l=>l.includes('•'));
+    if(!lines.length){c.innerHTML='<div class="bubble sys" style="grid-column:1/-1">No notes yet.</div>';return;}
+    c.innerHTML=lines.map(l=>{
+      const m=l.match(/•\s*(.*?)\s*\[(.+?)\]/);
+      const title=m?m[1]:'Note';const date=m?m[2]:'';
+      return `<div class="note-item" onclick="readNote('${title.replace(/'/g,"\\'")}')">
+        <div class="note-item-title">${title}</div>
+        <div class="note-item-preview">Click to read…</div>
+        <div class="note-item-footer">
+          <span class="note-item-date">${date}</span>
+          <button class="btn-danger btn-sm" onclick="event.stopPropagation();deleteNote('${title.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){c.innerHTML='<div class="bubble sys" style="grid-column:1/-1">Could not load notes.</div>';}
+}
+
+async function readNote(title){
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'read_note',args:{query:title}})});
+  if(r){const d=await r.json();addMessage(d.result||'Not found','jarvis');showPanel('chat');}
+}
+
+async function deleteNote(title){
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'delete_note',args:{query:title}})});
+  if(r){toast('Note deleted','ok');_panelLoaded['notes']=false;loadNotes();}
+}
+
+async function searchNotes(q){
+  if(!q){loadNotes();return;}
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'search_notes',args:{keyword:q}})});
+  if(r){const d=await r.json();const c=document.getElementById('notes-grid');c.innerHTML=`<div class="card" style="grid-column:1/-1;white-space:pre-wrap;font-size:.85rem">${d.result}</div>`;}
+}
+
+function openNoteModal(){openModal('modal-note');}
+async function createNote(){
+  const title=document.getElementById('note-title').value;
+  const content=document.getElementById('note-content').value;
+  const tags=document.getElementById('note-tags').value;
+  if(!title||!content){toast('Title and content required','err');return;}
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'create_note',args:{title,content,tags}})});
+  if(r){toast('Note saved','ok');closeModal('modal-note');_panelLoaded['notes']=false;loadNotes();}
+}
+
+/* ── Vault ────────────────────────────────────────────────────────────── */
+async function loadVault(){
+  const c=document.getElementById('vault-list');
+  c.innerHTML='<div class="bubble sys">Loading…</div>';
+  try{
+    const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'list_passwords',args:{}})});
+    if(!r)return;
+    const d=await r.json();
+    const txt=d.result||'';
+    const lines=txt.split('\n').filter(l=>l.trim()&&l.includes('•'));
+    _allVault=lines;
+    renderVault(lines);
+  }catch(e){c.innerHTML='<div class="bubble sys">Vault empty.</div>';}
+}
+
+function renderVault(lines){
+  const c=document.getElementById('vault-list');
+  if(!lines.length){c.innerHTML='<div class="bubble sys">No passwords stored.</div>';return;}
+  c.innerHTML=lines.map(l=>{
+    const m=l.match(/•\s*(.*?)(?:\s*[-–]\s*(.*))?$/);
+    const site=m?m[1].trim():'—';const info=m&&m[2]?m[2].trim():'';
+    return `<div class="vault-item">
+      <div class="vault-icon">🔑</div>
+      <div class="vault-info"><div class="vault-site">${site}</div><div class="vault-user">${info}</div></div>
+      <button class="btn-ghost btn-sm" onclick="copyPassword('${site.replace(/'/g,"\\'")}')">Copy</button>
+    </div>`;
+  }).join('');
+}
+
+function searchVault(q){renderVault(_allVault.filter(l=>l.toLowerCase().includes(q.toLowerCase())));}
+
+async function copyPassword(site){
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'get_password',args:{site}})});
+  if(r){const d=await r.json();
+    try{await navigator.clipboard.writeText(d.result||'');toast('Password copied','ok');}
+    catch(e){toast(d.result||'Done','info');}
+  }
+}
+
+function openVaultModal(){openModal('modal-vault');}
+async function addVaultEntry(){
+  const site=document.getElementById('vault-site').value;
+  const user=document.getElementById('vault-user').value;
+  const pw=document.getElementById('vault-pw').value;
+  if(!site||!pw){toast('Site and password required','err');return;}
+  const r=await apiFetch('/api/tool',{method:'POST',body:JSON.stringify({tool:'store_password',args:{site,username:user,password:pw}})});
+  if(r){toast('Password saved','ok');closeModal('modal-vault');_panelLoaded['security']=false;loadVault();}
+}
+
+/* ── Automation ───────────────────────────────────────────────────────── */
+async function autoCmd(cmd){
+  const out=document.getElementById('auto-output');
+  out.textContent='Running…';
+  const r=await apiFetch('/api/chat',{method:'POST',body:JSON.stringify({message:cmd,token})});
+  if(r){const d=await r.json();out.textContent=d.response||'Done';}
+}
+
+function autoModal(type){
+  _autoModalAction=type;
+  const titles={type:'Type Text',hotkey:'Press Hotkey',click:'Click at Position',focus:'Focus Window'};
+  const labels={type:'Text to type',hotkey:'Hotkey (e.g. ctrl+c)',click:'X,Y coordinates',focus:'Window title'};
+  const phs={type:'Hello world',hotkey:'ctrl+shift+t',click:'960,540',focus:'Notepad'};
+  document.getElementById('auto-modal-title').textContent=titles[type]||'Action';
+  document.getElementById('auto-modal-label').textContent=labels[type]||'Value';
+  document.getElementById('auto-modal-input').placeholder=phs[type]||'';
+  document.getElementById('auto-modal-input').value='';
+  openModal('modal-auto');
+}
+
+async function execAutoModal(){
+  const val=document.getElementById('auto-modal-input').value.trim();if(!val)return;
+  let cmd='';
+  if(_autoModalAction==='type') cmd=`type the text: ${val}`;
+  else if(_autoModalAction==='hotkey') cmd=`press the hotkey ${val}`;
+  else if(_autoModalAction==='click'){const[x,y]=val.split(',');cmd=`click at ${x} ${y}`;}
+  else if(_autoModalAction==='focus') cmd=`focus the window ${val}`;
+  closeModal('modal-auto');
+  document.getElementById('auto-output').textContent='Executing…';
+  const r=await apiFetch('/api/chat',{method:'POST',body:JSON.stringify({message:cmd,token})});
+  if(r){const d=await r.json();document.getElementById('auto-output').textContent=d.response||'Done';}
+}
+
+async function runAutoCmd(){
+  const val=document.getElementById('auto-cmd-input').value.trim();if(!val)return;
+  await autoCmd(val);
+}
+
+/* ── Research ─────────────────────────────────────────────────────────── */
+async function doSearch(){
+  const q=document.getElementById('search-input').value.trim();if(!q)return;
+  const c=document.getElementById('search-result');
+  c.innerHTML='<div class="bubble sys">Searching…</div>';
+  const r=await apiFetch('/api/chat',{method:'POST',body:JSON.stringify({message:'search the web for: '+q,token})});
+  if(r){const d=await r.json();c.innerHTML=`<div class="card" style="white-space:pre-wrap;font-size:.85rem">${formatMsg(d.response||'No results')}</div>`;}
+}
+
+async function loadNews(){
+  const c=document.getElementById('news-list');
+  c.innerHTML='<div class="bubble sys">Fetching news…</div>';
+  const r=await apiFetch('/api/chat',{method:'POST',body:JSON.stringify({message:'get me today\'s top news headlines',token})});
+  if(r){const d=await r.json();
+    c.innerHTML=`<div class="card" style="white-space:pre-wrap;font-size:.85rem;line-height:1.7">${formatMsg(d.response||'No news')}</div>`;}
+}
+
+async function doDeepResearch(){
+  const q=document.getElementById('research-input').value.trim();if(!q)return;
+  const out=document.getElementById('research-result');
+  out.textContent='Researching…';
+  const r=await apiFetch('/api/chat',{method:'POST',body:JSON.stringify({message:'do a deep research on: '+q,token})});
+  if(r){const d=await r.json();out.textContent=d.response||'No results';}
+}
+
+/* ── QR Code (simple canvas-based) ──────────────────────────────────── */
+function setQR(url){
+  if(!url)return;
+  // Use a simple QR API via img tag as fallback
+  const qrc=document.getElementById('qr-canvas');
+  const img=document.createElement('img');
+  img.onload=()=>{
+    const ctx=qrc.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,140,140);
+    ctx.drawImage(img,10,10,120,120);
+  };
+  // Use QR server API (online) or fallback to text
+  img.onerror=()=>{
+    const ctx=qrc.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,140,140);
+    ctx.fillStyle='#000';ctx.font='8px monospace';
+    ctx.textAlign='center';
+    const words=url.split('/');
+    words.forEach((w,i)=>ctx.fillText(w,70,40+i*14));
+  };
+  img.src=`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}`;
+  document.getElementById('connected-count').textContent='0';
+}
+
+/* ── Orb ─────────────────────────────────────────────────────────────── */
+/* ── Fibonacci sphere orb — single canonical implementation ────────── */
+function initOrb(){
+  const canvas=document.getElementById('orb-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  // Device-pixel-ratio aware sizing for crisp rendering
+  const DPR=window.devicePixelRatio||1;
+  const CSS=160;
+  canvas.width=CSS*DPR; canvas.height=CSS*DPR;
+  canvas.style.width=CSS+'px'; canvas.style.height=CSS+'px';
+  ctx.scale(DPR,DPR);
+  const W=CSS,H=CSS,N=300;
+  // Fibonacci sphere point distribution
+  const phi=Math.PI*(3-Math.sqrt(5));
+  const pts=Array.from({length:N},(_,i)=>{
+    const y=1-(i/(N-1))*2;
+    const r=Math.sqrt(Math.max(0,1-y*y));
+    const a=phi*i;
+    return{ox:Math.cos(a)*r,oy:y,oz:Math.sin(a)*r,
+           sz:Math.random()*1.8+0.4,off:Math.random()*Math.PI*2};
+  });
+  let curC=[6,182,212],rot=0;
+  window._orbTarget=[6,182,212];
+  function lerp(a,b,t){return a+(b-a)*t;}
+  let _rafId=null;
+  function tick(ts){
+    _rafId=requestAnimationFrame(tick);
+    const tgt=window._orbTarget||[6,182,212];
+    curC=curC.map((v,i)=>lerp(v,tgt[i],.05));
+    const state=window._orbState||'idle';
+    const spd=state==='thinking'?.014:state==='speaking'?.020:.005;
+    rot+=spd;
+    const cos=Math.cos(rot),sin=Math.sin(rot);
+    ctx.clearRect(0,0,W,H);
+    // Radial glow
+    const cc=`rgb(${curC.map(Math.round).join(',')})`;
+    const grad=ctx.createRadialGradient(W/2,H/2,6,W/2,H/2,74);
+    grad.addColorStop(0,cc+'30');grad.addColorStop(1,'transparent');
+    ctx.fillStyle=grad;ctx.beginPath();ctx.arc(W/2,H/2,74,0,Math.PI*2);ctx.fill();
+    // Project & sort points
+    const scale=state==='speaking'?65:state==='thinking'?61:56;
+    const proj=pts.map(p=>{
+      const x=p.ox*cos-p.oz*sin,z=p.ox*sin+p.oz*cos;
+      const pulse=1+Math.sin(ts*.0015+p.off)*(state==='speaking'?.20:state==='thinking'?.12:.06);
+      return{px:W/2+x*scale*pulse,py:H/2+p.oy*scale*pulse,depth:(z+1)/2,sz:p.sz};
+    }).sort((a,b)=>a.depth-b.depth);
+    // Draw dots
+    proj.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.px,p.py,p.sz*(0.45+p.depth*.85),0,Math.PI*2);
+      ctx.fillStyle=`rgba(${curC.map(Math.round).join(',')},${.20+p.depth*.80})`;
+      ctx.fill();
+    });
+  }
+  requestAnimationFrame(tick);
+  // Click orb → interrupt immediately
+  canvas.style.cursor='pointer';
+  canvas.addEventListener('click',()=>{if(typeof stopResponse==='function')stopResponse();});
+}
+
+function setOrbState(state){
+  _curState=state;
+  window._orbState=state;  // read by orb tick loop
+  const colors={idle:[6,182,212],listening:[16,185,129],thinking:[245,158,11],speaking:[167,139,250],error:[239,68,68]};
+  const c=colors[state]||colors.idle;
+  window._orbTarget=c;
+  const lbl=document.getElementById('state-label');
+  if(lbl){lbl.textContent=(state||'idle').toUpperCase();lbl.style.color=`rgb(${c.join(',')})`;};
+  // Show wave bars when listening, hide otherwise
+  const wave=document.getElementById('voice-wave');
+  if(wave) wave.classList.toggle('active', state==='listening');
+  // Update wave bar color to match state
+  if(wave){
+    const col=`rgb(${c.join(',')})`;
+    wave.querySelectorAll('.vbar').forEach(b=>b.style.background=col);
+  }
+
+}
+
+window.setState = setOrbState;  // Python bridge
+window.updateDevices = function(devices){
+  const n=devices.length;
+  document.getElementById('dev-dot').classList.toggle('online',n>0);
+  document.getElementById('dev-label').textContent=n?`${n} device${n>1?'s':''} connected`:'No remote devices';
+  document.getElementById('connected-count').textContent=n;
+};
+window.appendLog = function(text,type){
+  // Just add as system message in chat
+  if(type==='tool') addMessage('⚙ '+text,'sys');
+};
+
+/* ── Modals ──────────────────────────────────────────────────────────── */
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))closeModal(e.target.id);});
+
+/* ── Toast ────────────────────────────────────────────────────────────── */
+function toast(msg,type='info'){
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  const icons={ok:'✅',err:'❌',info:'ℹ️'};
+  t.className='toast '+(type==='ok'?'ok':type==='err'?'err':'info');
+  t.innerHTML=`<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3500);
+}
+
+/* ── Enrollments ─────────────────────────────────────────────────────── */
+async function enrollVoicePanel(){
+  const btn=document.getElementById('enroll-panel-btn');
+  const st=document.getElementById('enroll-panel-status');
+  btn.textContent='⏺ Enrolling…';btn.disabled=true;
+  try{
+    if(window.pywebview){await window.pywebview.api.enroll_voice();}
+    else{await apiFetch('/api/enroll_voice',{method:'POST'});}
+    st.textContent='✓ Voice enrolled!';st.style.color='var(--green)';toast('Voice enrolled','ok');
+  }catch(e){st.textContent='Failed';st.style.color='var(--red)';}
+  finally{btn.textContent='🎤 Enroll Voice';btn.disabled=false;}
+}
+
+/* ── Escape key → interrupt ───────────────────────────────────────────── */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&typeof stopResponse==='function')stopResponse();
+});
+</script>
+</body>
+</html>

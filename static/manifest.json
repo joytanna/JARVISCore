@@ -1,0 +1,21 @@
+{
+  "name": "JARVIS — Personal AI OS",
+  "short_name": "JARVIS",
+  "description": "Autonomous personal AI assistant",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#05070c",
+  "theme_color": "#06b6d4",
+  "orientation": "any",
+  "icons": [
+    { "src": "/static/icon-192.png",         "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icon-512.png",         "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    { "name": "Chat", "url": "/app#chat", "description": "Open chat interface" },
+    { "name": "Notes", "url": "/app#notes", "description": "Quick note" },
+    { "name": "Reminders", "url": "/app#calendar", "description": "Set reminder" }
+  ]
+}

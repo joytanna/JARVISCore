@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#030810">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JARVIS AI">
+<title>JARVIS AI</title>
+<link rel="manifest" href="/static/android_manifest.json">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<style>
+/* ══════════════════════════════════════════════════════════
+   JARVIS AI — Commercial Android App
+   Free tier: 20 queries/day · Pro: Unlimited · Lifetime: Forever
+   ══════════════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none}
+:root{
+  --bg:     #030810;   --bg2:    #060d1a;   --bg3:    #0a1525;
+  --bg4:    #0f1e34;   --card:   #080f1e;   --border: #1a2640;
+  --border2:#243352;   --accent: #06b6d4;   --accent2:#0891b2;
+  --green:  #10b981;   --amber:  #f59e0b;   --purple: #a78bfa;
+  --red:    #ef4444;   --gold:   #f59e0b;
+  --text:   #e2e8f0;   --text2:  #94a3b8;   --text3:  #475569;
+  --safe-t: env(safe-area-inset-top,0px);
+  --safe-b: env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;touch-action:manipulation}
+
+/* ══ BOOTLOADER ══════════════════════════════════════════════════════════════ */
+#bootloader{
+  position:fixed;inset:0;background:#000;z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 32px;gap:0;
+  transition:opacity .6s ease,transform .6s ease;
+}
+#bootloader.exit{opacity:0;transform:scale(1.04);pointer-events:none}
+
+.boot-logo{
+  font-family:monospace;font-size:2.4rem;font-weight:700;letter-spacing:.2em;
+  color:var(--accent);text-shadow:0 0 30px #06b6d488,0 0 60px #06b6d422;
+  margin-bottom:4px;opacity:0;animation:bootFadeIn .8s ease .2s forwards
+}
+.boot-tagline{
+  font-family:monospace;font-size:.65rem;letter-spacing:.35em;color:var(--text3);
+  margin-bottom:36px;opacity:0;animation:bootFadeIn .6s ease .6s forwards
+}
+@keyframes bootFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+#boot-terminal{
+  width:100%;max-width:360px;font-family:monospace;font-size:.78rem;
+  line-height:2;color:var(--text3);min-height:180px
+}
+.boot-line{opacity:0;white-space:nowrap;overflow:hidden}
+.boot-line.show{animation:bootLine .15s ease forwards}
+@keyframes bootLine{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+.boot-ok{color:var(--green);font-weight:600}
+.boot-warn{color:var(--amber)}
+
+#boot-bar-wrap{width:100%;max-width:360px;height:2px;background:#111;
+  border-radius:1px;margin-top:28px;overflow:hidden}
+#boot-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--purple));
+  width:0%;transition:width .5s ease;border-radius:1px;
+  box-shadow:0 0 8px var(--accent)66}
+
+/* ══ APP SHELL ════════════════════════════════════════════════════════════════ */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  opacity:0;transition:opacity .5s ease}
+#app.visible{opacity:1}
+
+/* ── Status bar ── */
+#sbar{
+  padding-top:var(--safe-t);background:var(--bg);
+  display:flex;align-items:center;justify-content:space-between;
+  padding-left:20px;padding-right:20px;padding-bottom:8px;
+  flex-shrink:0;padding-top:calc(var(--safe-t) + 10px)
+}
+.sbar-brand{font-family:monospace;font-size:.75rem;letter-spacing:.2em;color:var(--accent);font-weight:700}
+.sbar-right{display:flex;align-items:center;gap:10px}
+.sbar-plan{font-size:.58rem;letter-spacing:.1em;padding:2px 8px;border-radius:8px;font-family:monospace;font-weight:700}
+.sbar-plan.free{background:#1e2a4022;color:var(--text3);border:1px solid var(--border)}
+.sbar-plan.pro{background:#06b6d418;color:var(--accent);border:1px solid var(--accent)44}
+.sbar-plan.lifetime{background:#a78bfa18;color:var(--purple);border:1px solid var(--purple)44}
+.sbar-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);transition:background .4s}
+.sbar-dot.live{background:var(--green);box-shadow:0 0 5px var(--green)}
+.sbar-batt{font-size:.68rem;color:var(--text3);font-family:monospace}
+
+/* ── Content area ── */
+#content{flex:1;overflow:hidden;position:relative}
+.tab{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+  display:none;flex-direction:column;-webkit-overflow-scrolling:touch}
+.tab.active{display:flex}
+
+/* ══ HOME TAB ═════════════════════════════════════════════════════════════════ */
+#tab-home{
+  align-items:center;
+  background:radial-gradient(ellipse 80% 60% at 50% 15%,#06b6d40a 0%,transparent 70%);
+  padding:0 20px 12px
+}
+
+/* Orb */
+.orb-section{display:flex;flex-direction:column;align-items:center;
+  flex-shrink:0;padding-top:12px}
+.orb-ring-wrap{position:relative;cursor:pointer;margin-bottom:6px}
+.orb-ring{position:absolute;inset:-10px;border-radius:50%;border:1.5px solid transparent;
+  transition:border-color .4s,box-shadow .4s}
+.orb-ring.listening{border-color:var(--green);box-shadow:0 0 24px #10b98166;
+  animation:orbRing 1.4s ease-in-out infinite}
+.orb-ring.thinking{border-color:var(--amber);box-shadow:0 0 20px #f59e0b55}
+.orb-ring.speaking{border-color:var(--purple);box-shadow:0 0 24px #a78bfa55}
+@keyframes orbRing{0%,100%{opacity:.5}50%{opacity:1}}
+#orb-canvas{display:block}
+.orb-state{font-family:monospace;font-size:.7rem;letter-spacing:.15em;color:var(--accent);
+  margin-bottom:2px}
+.orb-sub{font-size:.65rem;color:var(--text3);letter-spacing:.05em}
+
+/* Voice wave */
+#vwave{height:28px;display:none;align-items:center;gap:2.5px;margin:6px 0}
+#vwave.active{display:flex}
+.vb{width:2.5px;border-radius:3px;background:var(--green);
+  animation:vbwave .55s ease-in-out infinite alternate}
+.vb:nth-child(1){height:6px;animation-delay:0s}  .vb:nth-child(2){height:14px;animation-delay:.07s}
+.vb:nth-child(3){height:22px;animation-delay:.04s} .vb:nth-child(4){height:18px;animation-delay:.11s}
+.vb:nth-child(5){height:26px;animation-delay:.03s} .vb:nth-child(6){height:16px;animation-delay:.09s}
+.vb:nth-child(7){height:10px;animation-delay:.06s} .vb:nth-child(8){height:20px;animation-delay:.13s}
+.vb:nth-child(9){height:8px;animation-delay:.01s}
+@keyframes vbwave{from{transform:scaleY(.25)}to{transform:scaleY(1.15)}}
+
+/* Push-to-talk */
+.ptt-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;margin:4px 0}
+#ptt{width:72px;height:72px;border-radius:50%;border:none;
+  background:var(--accent);color:#fff;font-size:1.5rem;
+  box-shadow:0 4px 20px #06b6d44a;cursor:pointer;
+  transition:all .15s;display:flex;align-items:center;justify-content:center}
+#ptt.on{background:var(--red);box-shadow:0 4px 24px #ef444460;animation:pttPulse 1s ease infinite}
+#ptt.thinking{background:var(--amber);box-shadow:0 4px 20px #f59e0b44}
+@keyframes pttPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.ptt-lbl{font-size:.6rem;letter-spacing:.15em;color:var(--text3);font-family:monospace}
+
+/* Quick cards */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:9px;width:100%;margin-top:8px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:14px 15px;cursor:pointer;transition:all .12s;position:relative;overflow:hidden}
+.card:active{transform:scale(.96);background:var(--bg4)}
+.card.wide{grid-column:1/-1}
+.card-icon{font-size:1.3rem;margin-bottom:6px}
+.card-lbl{font-size:.63rem;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
+.card-val{font-size:.95rem;font-weight:600;color:var(--text)}
+.card-sub{font-size:.68rem;color:var(--text3);margin-top:2px}
+/* Pro lock overlay */
+.lock-overlay{position:absolute;inset:0;background:#030810cc;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border-radius:18px;backdrop-filter:blur(2px)}
+.lock-icon{font-size:1.3rem}
+.lock-txt{font-size:.62rem;color:var(--gold);letter-spacing:.08em;font-family:monospace}
+/* Last response */
+.resp-card{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:14px 16px;width:100%;margin-top:8px;cursor:pointer;display:none}
+.resp-lbl{font-size:.6rem;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.resp-txt{font-size:.85rem;color:var(--text2);line-height:1.55;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+
+/* Suggestions */
+.chips{display:flex;gap:7px;overflow-x:auto;width:100%;margin-top:8px;
+  scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{background:var(--bg3);border:1px solid var(--border);color:var(--text2);
+  border-radius:20px;padding:6px 14px;font-size:.72rem;cursor:pointer;
+  white-space:nowrap;transition:all .15s;flex-shrink:0}
+.chip:active{background:var(--bg4);border-color:var(--accent);color:var(--accent)}
+.chip.pro-chip{border-color:var(--gold)44;color:var(--gold)}
+
+/* ══ CHAT TAB ═════════════════════════════════════════════════════════════════ */
+#tab-chat{background:var(--bg)}
+.msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;
+  gap:10px;-webkit-overflow-scrolling:touch}
+.bub{padding:11px 15px;border-radius:20px;font-size:.875rem;line-height:1.58;
+  max-width:86%;word-break:break-word}
+.bub.user{background:#0e2539;color:#8dc5e6;border:1px solid #1a3a55;
+  align-self:flex-end;border-bottom-right-radius:4px}
+.bub.ai{background:var(--card);color:var(--text);border:1px solid var(--border);
+  align-self:flex-start;border-bottom-left-radius:4px}
+.bub.sys{color:var(--text3);font-size:.72rem;font-family:monospace;text-align:center;
+  align-self:center;padding:3px 12px}
+/* Rich response card */
+.bub.ai pre{background:var(--bg3);padding:10px 12px;border-radius:10px;
+  font-size:.78rem;overflow-x:auto;margin:6px 0;color:#a5f3fc}
+.bub.ai code{background:var(--bg3);padding:1px 5px;border-radius:4px;
+  font-size:.82rem;color:var(--accent)}
+/* Typing */
+.typing{display:none;align-items:center;gap:5px;padding:12px 16px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text3);
+  animation:dotpulse .9s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+@keyframes dotpulse{0%,80%,100%{transform:scale(.65);opacity:.4}40%{transform:scale(1);opacity:1}}
+/* Chat input */
+.chat-bar{padding:10px 14px;padding-bottom:calc(10px + var(--safe-b));
+  border-top:1px solid var(--border);background:var(--bg);
+  display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+#cinput{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  border-radius:22px;padding:10px 16px;font-size:.9rem;outline:none;resize:none;
+  max-height:130px;min-height:42px;font-family:inherit;line-height:1.45}
+#cinput:focus{border-color:var(--accent)}
+.cbtn{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem;transition:all .15s}
+.cbtn.mic{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.cbtn.mic.on{background:var(--red);color:#fff;border-color:transparent}
+.cbtn.send{background:var(--accent);color:#fff}
+.cbtn.stop{background:var(--red);color:#fff;display:none}
+.cbtn.stop.show{display:flex}
+.cbtn:active{opacity:.75}
+
+/* ══ ACTIONS TAB ══════════════════════════════════════════════════════════════ */
+#tab-actions{padding:0 16px 16px;gap:0}
+.sec-title{font-size:.63rem;color:var(--text3);letter-spacing:.14em;
+  text-transform:uppercase;padding:16px 0 9px;font-family:monospace}
+.act-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.act-btn{background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:16px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;
+  cursor:pointer;border:none;color:var(--text);transition:all .12s;position:relative;overflow:hidden}
+.act-btn:active{transform:scale(.94);background:var(--bg4)}
+.act-btn.pro-btn{border:1px solid var(--gold)22}
+.act-btn.pro-btn::after{content:'PRO';position:absolute;top:5px;right:6px;
+  font-size:.48rem;letter-spacing:.1em;color:var(--gold);font-family:monospace;font-weight:700}
+.act-ico{font-size:1.45rem}
+.act-lbl{font-size:.63rem;color:var(--text2);text-align:center;line-height:1.3}
+.act-btn.pro-btn .act-lbl{color:var(--text3)}
+
+/* ══ SETTINGS TAB ═════════════════════════════════════════════════════════════ */
+#tab-settings{padding:0 16px 16px}
+.set-card{background:var(--card);border-radius:18px;border:1px solid var(--border);
+  overflow:hidden;margin-bottom:12px}
+.set-row{display:flex;align-items:center;padding:14px 16px;
+  border-bottom:1px solid var(--border);gap:12px}
+.set-row:last-child{border-bottom:none}
+.set-ico{font-size:1rem;flex-shrink:0;width:22px;text-align:center}
+.set-inf{flex:1}
+.set-inf strong{display:block;font-size:.88rem;color:var(--text)}
+.set-inf small{font-size:.72rem;color:var(--text3)}
+.pill{border:none;border-radius:20px;padding:6px 14px;font-size:.73rem;
+  cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s}
+.pill.blue{background:var(--accent);color:#fff}
+.pill.gold{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
+.pill.ghost{background:var(--bg4);color:var(--text2);border:1px solid var(--border)}
+.pill:active{opacity:.75}
+/* Upgrade card */
+.upgrade-card{background:linear-gradient(135deg,#06b6d414,#a78bfa10);
+  border:1px solid var(--accent)33;border-radius:20px;padding:20px;
+  display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.uc-title{font-size:1.1rem;font-weight:700;color:var(--accent)}
+.uc-desc{font-size:.8rem;color:var(--text2);line-height:1.55}
+.uc-price{display:flex;gap:10px;flex-wrap:wrap}
+.uc-btn{flex:1;min-width:120px;background:var(--accent);color:#fff;border:none;
+  border-radius:12px;padding:11px 8px;font-size:.8rem;font-weight:600;
+  cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.uc-btn.gold{background:linear-gradient(135deg,#f59e0b,#d97706);color:#000}
+.uc-btn:active{opacity:.75}
+.uc-code{display:flex;gap:6px;margin-top:4px}
+.uc-code input{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  border-radius:10px;padding:8px 12px;font-size:.82rem;outline:none;font-family:monospace}
+.uc-code input:focus{border-color:var(--accent)}
+/* Connection status */
+.conn-banner{display:flex;align-items:center;gap:10px;background:var(--card);
+  border-radius:14px;padding:13px 15px;border:1px solid var(--border);margin-bottom:12px}
+#conn-dot2{width:9px;height:9px;border-radius:50%;background:var(--red);
+  flex-shrink:0;transition:background .4s}
+#conn-dot2.live{background:var(--green);box-shadow:0 0 5px var(--green)}
+#conn-txt2{font-size:.82rem;color:var(--text2)}
+#conn-srv2{font-size:.68rem;color:var(--text3);font-family:monospace}
+
+/* ══ BOTTOM NAV ═══════════════════════════════════════════════════════════════ */
+#nav{height:calc(56px + var(--safe-b));padding-bottom:var(--safe-b);
+  background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;align-items:stretch;flex-shrink:0}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;border:none;background:transparent;color:var(--text3);cursor:pointer;
+  transition:color .15s;padding-bottom:2px;-webkit-tap-highlight-color:transparent}
+.ni.active{color:var(--accent)}
+.ni-ico{font-size:1.15rem;line-height:1}
+.ni-lbl{font-size:.58rem;letter-spacing:.06em;font-family:monospace}
+
+/* ══ MODALS ═══════════════════════════════════════════════════════════════════ */
+.modal-bg{position:fixed;inset:0;background:#000a;z-index:100;
+  display:none;align-items:flex-end;justify-content:center;
+  animation:mbgIn .2s ease}
+.modal-bg.open{display:flex}
+@keyframes mbgIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg2);border-radius:24px 24px 0 0;width:100%;
+  max-width:480px;padding:24px;padding-bottom:calc(24px + var(--safe-b));
+  animation:sheetUp .3s ease;max-height:80vh;overflow-y:auto}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+.modal-pill{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:1.1rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+.modal-body{font-size:.85rem;color:var(--text2);line-height:1.6;margin-bottom:20px}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap}
+.m-inp{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  border-radius:12px;padding:12px 14px;font-size:.9rem;outline:none;margin-bottom:10px}
+.m-inp:focus{border-color:var(--accent)}
+
+/* Upgrade modal */
+#modal-upgrade .feat-list{margin:12px 0;display:flex;flex-direction:column;gap:8px}
+.feat-row{display:flex;align-items:center;gap:10px;font-size:.83rem;color:var(--text2)}
+.feat-row .feat-ico{font-size:.95rem;flex-shrink:0}
+.plan-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.ptab{flex:1;min-width:100px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .15s;border:none}
+.ptab:active,.ptab.sel{background:var(--accent);color:#fff}
+.ptab.sel{color:#fff}
+.ptab-price{font-size:1rem;font-weight:700;color:var(--text)}
+.ptab.sel .ptab-price{color:#fff}
+.ptab-lbl{font-size:.65rem;color:var(--text3);margin-top:2px}
+.ptab.sel .ptab-lbl{color:#ffffffaa}
+.badge-save{background:var(--green);color:#fff;font-size:.6rem;padding:2px 6px;
+  border-radius:6px;font-weight:700;margin-top:4px;display:inline-block}
+
+/* ══ INSTALL BANNER ══════════════════════════════════════════════════════════ */
+#install-banner{position:fixed;bottom:calc(62px + var(--safe-b));left:12px;right:12px;
+  background:var(--bg3);border:1px solid var(--accent)55;border-radius:18px;
+  padding:14px 16px;display:none;align-items:center;gap:12px;z-index:50;
+  box-shadow:0 8px 32px #00000099}
+#install-banner.show{display:flex}
+.ib-text{flex:1;font-size:.8rem;color:var(--text2);line-height:1.4}
+.ib-btn{background:var(--accent);color:#fff;border:none;border-radius:10px;
+  padding:8px 16px;font-size:.8rem;font-weight:700;cursor:pointer;flex-shrink:0}
+
+/* ══ TOAST ════════════════════════════════════════════════════════════════════ */
+#toasts{position:fixed;top:calc(var(--safe-t) + 8px);left:12px;right:12px;
+  z-index:200;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--bg3);border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;font-size:.82rem;color:var(--text);
+  box-shadow:0 4px 16px #0009;pointer-events:auto;animation:tIn .2s ease}
+.toast.ok{border-color:var(--green)44}.toast.err{border-color:var(--red)44}
+@keyframes tIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* ══ SETUP SCREEN (first-time / no server) ════════════════════════════════════ */
+#setup-screen{position:fixed;inset:0;background:var(--bg);z-index:80;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 28px;gap:16px}
+#setup-screen.show{display:flex}
+.ss-logo{font-size:2rem;font-weight:700;color:var(--accent);font-family:monospace;letter-spacing:.2em}
+.ss-desc{font-size:.85rem;color:var(--text2);text-align:center;line-height:1.6;max-width:300px}
+.ss-inp{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  border-radius:14px;padding:14px 18px;font-size:1rem;outline:none;text-align:center;
+  font-family:monospace;letter-spacing:.05em}
+.ss-inp:focus{border-color:var(--accent)}
+.ss-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:14px;
+  padding:14px;font-size:1rem;font-weight:700;cursor:pointer}
+.ss-note{font-size:.7rem;color:var(--text3);text-align:center;line-height:1.6;max-width:280px}
+.or{color:var(--text3);font-size:.75rem;display:flex;align-items:center;gap:8px;width:100%}
+.or::before,.or::after{content:'';flex:1;height:1px;background:var(--border)}
+.ss-gem-btn{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text2);
+  border-radius:14px;padding:12px;font-size:.9rem;cursor:pointer;font-family:inherit}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:2px}::-webkit-scrollbar-thumb{background:var(--border)}
+</style>
+</head>
+<body>
+
+<!-- ══ BOOTLOADER ═══════════════════════════════════════════════════════════ -->
+<div id="bootloader">
+  <div class="boot-logo">JARVIS AI</div>
+  <div class="boot-tagline">PERSONAL AI ASSISTANT</div>
+  <div id="boot-terminal"></div>
+  <div id="boot-bar-wrap"><div id="boot-bar"></div></div>
+</div>
+
+<!-- ══ SETUP SCREEN (first time) ════════════════════════════════════════════ -->
+<div id="setup-screen">
+  <div class="ss-logo">JARVIS</div>
+  <div class="ss-desc">Connect to your JARVIS PC on the same Wi-Fi, or use standalone AI mode with your Gemini API key.</div>
+
+  <input class="ss-inp" id="ss-ip" type="url" inputmode="url" placeholder="http://192.168.x.x:8100" autocomplete="off">
+  <button class="ss-btn" onclick="tryConnect()">Connect to JARVIS PC</button>
+
+  <div class="or">or</div>
+
+  <input class="ss-inp" id="ss-gemkey" type="password" placeholder="Gemini API key (optional)" autocomplete="off">
+  <button class="ss-gem-btn" onclick="standaloneMode()">Use Standalone AI Mode</button>
+
+  <div class="or">owner</div>
+  <input class="ss-inp" id="ss-admin-email" type="email" inputmode="email"
+    placeholder="Owner email (joytanna21@gmail.com)" autocomplete="off">
+  <input class="ss-inp" id="ss-admin-pw" type="password"
+    placeholder="Owner password" autocomplete="current-password">
+  <button class="ss-gem-btn" onclick="ownerLogin()" style="border-color:#a78bfa44;color:#a78bfa">
+    🔐 Owner Login — All Features Free
+  </button>
+
+  <div class="ss-note">
+    Get a free Gemini API key at ai.google.dev<br>
+    In standalone mode: 20 AI queries/day free.<br>
+    Use code <strong style="color:#06b6d4">JARVIS21</strong> to request full access.
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Status bar -->
+  <div id="sbar">
+    <span class="sbar-brand">JARVIS</span>
+    <div class="sbar-right">
+      <span class="sbar-batt" id="batt"></span>
+      <span class="sbar-plan free" id="plan-badge">FREE</span>
+      <div class="sbar-dot" id="dot"></div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- ── HOME ── -->
+    <div class="tab active" id="tab-home">
+      <div class="orb-section">
+        <div id="home-greeting" style="font-size:.95rem;color:var(--text2);margin-bottom:12px">Good day, sir.</div>
+
+        <div class="orb-ring-wrap" onclick="orbTap()">
+          <div class="orb-ring" id="orb-ring"></div>
+          <canvas id="orb-canvas" width="180" height="180"></canvas>
+        </div>
+        <div class="orb-state" id="orb-lbl">IDLE</div>
+        <div class="orb-sub" id="ai-lbl">GEMINI 2.5 FLASH</div>
+
+        <div id="vwave">
+          <div class="vb"></div><div class="vb"></div><div class="vb"></div>
+          <div class="vb"></div><div class="vb"></div><div class="vb"></div>
+          <div class="vb"></div><div class="vb"></div><div class="vb"></div>
+        </div>
+
+        <div class="ptt-wrap">
+          <div class="ptt-lbl" id="ptt-lbl">HOLD TO SPEAK</div>
+          <button id="ptt"
+            ontouchstart="startPTT(event)" ontouchend="stopPTT(event)"
+            onmousedown="startPTT(event)" onmouseup="stopPTT(event)">🎤</button>
+        </div>
+      </div>
+
+      <!-- Suggestion chips -->
+      <div class="chips" id="chips"></div>
+
+      <!-- Quick cards -->
+      <div class="cards">
+        <div class="card" onclick="run('weather')">
+          <div class="card-icon">🌤</div>
+          <div class="card-lbl">WEATHER</div>
+          <div class="card-val" id="c-weather">Tap to check</div>
+        </div>
+        <div class="card" id="c-time-card">
+          <div class="card-icon">🕐</div>
+          <div class="card-lbl">TIME & DATE</div>
+          <div class="card-val" id="c-time">--:--</div>
+          <div class="card-sub" id="c-date"></div>
+        </div>
+        <div class="card" onclick="run('pomodoro status')" id="card-pomodoro">
+          <div class="card-icon">🍅</div>
+          <div class="card-lbl">FOCUS TIMER</div>
+          <div class="card-val" id="c-focus">Idle</div>
+          <div class="lock-overlay" id="lock-pomodoro" onclick="openUpgrade(event)">
+            <div class="lock-icon">🔒</div><div class="lock-txt">PRO FEATURE</div>
+          </div>
+        </div>
+        <div class="card" onclick="run('habits today')" id="card-habits">
+          <div class="card-icon">✅</div>
+          <div class="card-lbl">HABITS</div>
+          <div class="card-val" id="c-habits">—</div>
+        </div>
+        <div class="card wide" onclick="run('good morning briefing')" id="card-brief">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:1.4rem">☀</div>
+            <div>
+              <div class="card-lbl">MORNING BRIEFING</div>
+              <div style="font-size:.82rem;color:var(--text2)">News · Weather · Calendar · AI insights</div>
+            </div>
+          </div>
+          <div class="lock-overlay" id="lock-brief" onclick="openUpgrade(event)">
+            <div class="lock-icon">🔒</div><div class="lock-txt">PRO FEATURE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Last response -->
+      <div class="resp-card" id="last-resp" onclick="switchTab('chat')">
+        <div class="resp-lbl">LAST RESPONSE — TAP TO VIEW CHAT</div>
+        <div class="resp-txt" id="last-resp-txt"></div>
+      </div>
+    </div><!-- /tab-home -->
+
+    <!-- ── CHAT ── -->
+    <div class="tab" id="tab-chat">
+      <div class="msgs" id="msgs">
+        <div class="bub sys">JARVIS online — type or hold mic to speak.</div>
+      </div>
+      <div class="typing" id="typing">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+      <div class="chat-bar">
+        <textarea id="cinput" placeholder="Ask JARVIS anything…" rows="1"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,130)+'px'"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send()}"></textarea>
+        <button class="cbtn mic" id="mic-btn" onclick="toggleMic()">🎤</button>
+        <button class="cbtn send" onclick="send()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+        <button class="cbtn stop" id="stop-btn" onclick="doStop()">■</button>
+      </div>
+    </div><!-- /tab-chat -->
+
+    <!-- ── ACTIONS ── -->
+    <div class="tab" id="tab-actions">
+      <div class="sec-title">PC Control</div>
+      <div class="act-grid">
+        <button class="act-btn pro-btn" onclick="proRun('mute volume')"><div class="act-ico">🔇</div><div class="act-lbl">Mute PC</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('lock screen')"><div class="act-ico">🔒</div><div class="act-lbl">Lock PC</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('take a screenshot')"><div class="act-ico">📸</div><div class="act-lbl">Screenshot</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('battery status')"><div class="act-ico">🔋</div><div class="act-lbl">PC Battery</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('list running apps')"><div class="act-ico">📋</div><div class="act-lbl">Processes</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('system health report')"><div class="act-ico">🖥</div><div class="act-lbl">PC Health</div></button>
+      </div>
+
+      <div class="sec-title">AI Tools</div>
+      <div class="act-grid">
+        <button class="act-btn" onclick="run('word of the day')"><div class="act-ico">📖</div><div class="act-lbl">Word of Day</div></button>
+        <button class="act-btn" onclick="run('random fact')"><div class="act-ico">🧠</div><div class="act-lbl">Fun Fact</div></button>
+        <button class="act-btn" onclick="run('tell me a joke')"><div class="act-ico">😄</div><div class="act-lbl">Joke</div></button>
+        <button class="act-btn" onclick="run('flip a coin')"><div class="act-ico">🪙</div><div class="act-lbl">Flip Coin</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('start pomodoro')"><div class="act-ico">🍅</div><div class="act-lbl">Pomodoro</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('productivity score')"><div class="act-ico">📊</div><div class="act-lbl">Productivity</div></button>
+      </div>
+
+      <div class="sec-title">Communication</div>
+      <div class="act-grid">
+        <button class="act-btn pro-btn" onclick="proRun('read emails')"><div class="act-ico">📧</div><div class="act-lbl">Emails</div></button>
+        <button class="act-btn pro-btn" onclick="importContacts()"><div class="act-ico">📇</div><div class="act-lbl">Import Contacts</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('list contacts')"><div class="act-ico">👥</div><div class="act-lbl">Contacts</div></button>
+        <button class="act-btn" onclick="run('list reminders')"><div class="act-ico">🔔</div><div class="act-lbl">Reminders</div></button>
+        <button class="act-btn pro-btn" onclick="proRun('stock price AAPL')"><div class="act-ico">📈</div><div class="act-lbl">Stocks</div></button>
+        <button class="act-btn" onclick="run('world clock')"><div class="act-ico">🌍</div><div class="act-lbl">World Clock</div></button>
+      </div>
+    </div><!-- /tab-actions -->
+
+    <!-- ── SETTINGS ── -->
+    <div class="tab" id="tab-settings">
+      <div class="sec-title" style="padding-top:12px">Your Plan</div>
+
+      <!-- Upgrade card (shown for free users) -->
+      <div class="upgrade-card" id="upgrade-cta">
+        <div class="uc-title">🚀 Upgrade to JARVIS Pro</div>
+        <div class="uc-desc">Unlock unlimited AI, email, contacts, PC control, budget tracker, flashcards and 275+ tools.</div>
+        <div class="plan-tabs">
+          <button class="ptab sel" id="ptab-monthly" onclick="selectPlan('monthly')">
+            <div class="ptab-price">$3.99</div><div class="ptab-lbl">/month</div>
+          </button>
+          <button class="ptab" id="ptab-annual" onclick="selectPlan('annual')">
+            <div class="ptab-price">$34.99</div><div class="ptab-lbl">/year</div>
+            <div class="badge-save">SAVE 27%</div>
+          </button>
+          <button class="ptab" id="ptab-lifetime" onclick="selectPlan('lifetime')">
+            <div class="ptab-price">$49.99</div><div class="ptab-lbl">lifetime</div>
+          </button>
+        </div>
+        <button class="uc-btn" id="pay-btn" onclick="goToPay()">Get Pro →</button>
+        <div class="uc-code">
+          <input id="dc-input" placeholder="Discount code (e.g. LAUNCH2026)" autocomplete="off">
+          <button class="pill ghost" onclick="redeemCode()">Apply</button>
+        </div>
+        <div style="font-size:.68rem;color:var(--text3);text-align:center;margin-top:2px">
+          Secure payment via LemonSqueezy · Cancel anytime
+        </div>
+      </div>
+
+      <!-- License key activation -->
+      <div class="set-card" style="margin-bottom:12px">
+        <div class="set-row">
+          <div class="set-ico">🔑</div>
+          <div class="set-inf">
+            <strong>Have a license key?</strong>
+            <small>Enter it below to activate Pro or Lifetime</small>
+          </div>
+        </div>
+        <div style="padding:0 16px 14px;display:flex;gap:8px">
+          <input class="m-inp" id="lic-input" style="margin:0" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters">
+          <button class="pill blue" onclick="activateLicense()">Activate</button>
+        </div>
+      </div>
+
+      <div class="sec-title">Connection</div>
+      <div class="conn-banner">
+        <div id="conn-dot2"></div>
+        <div>
+          <div id="conn-txt2">Not connected to JARVIS PC</div>
+          <div id="conn-srv2">Standalone AI mode</div>
+        </div>
+        <button class="pill ghost" onclick="showSetup()" style="margin-left:auto">Change</button>
+      </div>
+
+      <div class="sec-title">AI Engine</div>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-ico">🤖</div>
+          <div class="set-inf">
+            <strong id="ai-engine">Gemini 2.5 Flash</strong>
+            <small>Free · Multimodal · Privacy-first</small>
+          </div>
+          <span style="font-size:.62rem;color:var(--green);font-family:monospace">ACTIVE</span>
+        </div>
+        <div class="set-row">
+          <div class="set-ico">🔑</div>
+          <div class="set-inf">
+            <strong>Gemini API Key</strong>
+            <small id="gem-key-status">Not set — using shared key (limited)</small>
+          </div>
+          <button class="pill ghost" onclick="editGemKey()">Edit</button>
+        </div>
+      </div>
+
+      <div class="sec-title">Phone</div>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-ico">📇</div>
+          <div class="set-inf">
+            <strong>Sync Contacts</strong>
+            <small id="contacts-st">Not synced</small>
+          </div>
+          <button class="pill blue" onclick="importContacts()">Sync</button>
+        </div>
+        <div class="set-row">
+          <div class="set-ico">🔔</div>
+          <div class="set-inf">
+            <strong>Notifications</strong>
+            <small id="notif-st">Not enabled</small>
+          </div>
+          <button class="pill ghost" onclick="askNotif()">Enable</button>
+        </div>
+        <div class="set-row">
+          <div class="set-ico">🔋</div>
+          <div class="set-inf"><strong>Battery</strong><small id="batt-st">—</small></div>
+        </div>
+        <div class="set-row">
+          <div class="set-ico">📶</div>
+          <div class="set-inf"><strong>Network</strong><small id="net-st">—</small></div>
+        </div>
+      </div>
+
+      <div class="sec-title">Install App</div>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-ico">📲</div>
+          <div class="set-inf">
+            <strong>Add to Home Screen</strong>
+            <small>Install JARVIS as a native-feeling app</small>
+          </div>
+          <button class="pill blue" id="install-btn" onclick="doInstall()" style="display:none">Install</button>
+          <span id="install-done" style="font-size:.7rem;color:var(--green);display:none">Installed ✓</span>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+    </div><!-- /tab-settings -->
+
+  </div><!-- /content -->
+
+  <!-- Bottom nav -->
+  <nav id="nav">
+    <button class="ni active" id="ni-home" onclick="switchTab('home')">
+      <div class="ni-ico">◈</div><div class="ni-lbl">HOME</div>
+    </button>
+    <button class="ni" id="ni-chat" onclick="switchTab('chat')">
+      <div class="ni-ico">💬</div><div class="ni-lbl">CHAT</div>
+    </button>
+    <button class="ni" id="ni-actions" onclick="switchTab('actions')">
+      <div class="ni-ico">⚡</div><div class="ni-lbl">ACTIONS</div>
+    </button>
+    <button class="ni" id="ni-settings" onclick="switchTab('settings')">
+      <div class="ni-ico">⚙</div><div class="ni-lbl">SETTINGS</div>
+    </button>
+  </nav>
+</div><!-- /app -->
+
+<!-- Install banner -->
+<div id="install-banner">
+  <div style="font-size:1.3rem">📲</div>
+  <div class="ib-text"><strong>Install JARVIS</strong><br>Add to home screen for the native app experience</div>
+  <button class="ib-btn" onclick="doInstall()">Install</button>
+</div>
+
+<!-- Upgrade modal -->
+<div class="modal-bg" id="modal-upgrade" onclick="if(event.target===this)closeUpgrade()">
+  <div class="modal">
+    <div class="modal-pill"></div>
+    <div class="modal-title">🚀 Upgrade to Pro</div>
+    <div class="modal-body">This feature requires JARVIS Pro. Unlock unlimited AI, email, contacts, PC control, and 275+ tools.</div>
+    <div class="feat-list">
+      <div class="feat-row"><div class="feat-ico">✅</div> Unlimited AI conversations</div>
+      <div class="feat-row"><div class="feat-ico">✅</div> Email reading & composing</div>
+      <div class="feat-row"><div class="feat-ico">✅</div> Contact sync from your phone</div>
+      <div class="feat-row"><div class="feat-ico">✅</div> Full PC remote control</div>
+      <div class="feat-row"><div class="feat-ico">✅</div> Budget, habits, flashcards, stocks</div>
+      <div class="feat-row"><div class="feat-ico">✅</div> Priority Gemini 2.5 Flash</div>
+    </div>
+    <div class="modal-actions">
+      <button class="pill blue" style="flex:2;padding:12px" onclick="goToPay()">Get Pro — from $3.99/mo →</button>
+      <button class="pill ghost" style="flex:1;padding:12px" onclick="closeUpgrade()">Not now</button>
+    </div>
+    <div style="text-align:center;margin-top:12px">
+      <input class="m-inp" id="dc2" placeholder="Discount code" autocomplete="off" style="width:60%;display:inline-block;margin:0 6px 0 0">
+      <button class="pill ghost" onclick="redeemCode2()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   JARVIS AI — Android App JavaScript
+   ═══════════════════════════════════════════════════════════════════════════ */
+const PERSONA = "You are JARVIS, a personal AI assistant. Calm. British. Dry wit. Never flustered. Never verbose. Address the user as 'sir'. One or two sentences unless detail is required.";
+
+let SERVER   = localStorage.getItem('jarvis_srv')  || '';
+let GEM_KEY  = localStorage.getItem('jarvis_gem')  || '';
+let TOKEN    = localStorage.getItem('jarvis_tok')  || '';
+let PLAN     = localStorage.getItem('jarvis_plan') || 'free';
+let ws       = null, wsRetries = 0;
+let _state   = 'idle', _recog = null, _pttActive = false, _micActive = false;
+let _deferInstall = null, _selPlan = 'monthly';
+let _qToday  = parseInt(localStorage.getItem('jarvis_q_'+_today())||'0');
+
+function _today(){ return new Date().toISOString().slice(0,10); }
+
+/* ── Boot sequence ────────────────────────────────────────────────── */
+const BOOT = [
+  {t:'JARVIS AI CORE           ', s:'LOADING',  c:'#94a3b8', d:120},
+  {t:'NEURAL ENGINE            ', s:'OK',       c:'#10b981', d:380},
+  {t:'GEMINI 2.5 FLASH         ', s:'ONLINE',   c:'#10b981', d:640},
+  {t:'VOICE RECOGNITION        ', s:'READY',    c:'#10b981', d:880},
+  {t:'TOOL REGISTRY (275+)     ', s:'LOADED',   c:'#10b981', d:1100},
+  {t:'SECURE CHANNEL           ', s:'ENABLED',  c:'#10b981', d:1320},
+  {t:'MEMORY SUBSYSTEM         ', s:'OK',       c:'#10b981', d:1540},
+  {t:'────────────────────────────────────', s:'',c:'#1e2a40',d:1720},
+  {t:'ALL SYSTEMS NOMINAL.', s:'JARVIS ONLINE.',c:'#a78bfa', d:1900, bold:true},
+];
+
+function runBootloader(){
+  const terminal = document.getElementById('boot-terminal');
+  const bar      = document.getElementById('boot-bar');
+  BOOT.forEach((line, i)=>{
+    setTimeout(()=>{
+      const el = document.createElement('div');
+      el.className = 'boot-line show';
+      el.style.color = line.c;
+      if(line.bold) el.style.fontWeight='700';
+      if(line.s){
+        el.innerHTML = `${line.t}<span class="boot-ok" style="color:${line.c}">[${line.s}]</span>`;
+      } else {
+        el.textContent = line.t;
+      }
+      terminal.appendChild(el);
+      bar.style.width = Math.round((i+1)/BOOT.length*100)+'%';
+      if(navigator.vibrate && i===BOOT.length-1) navigator.vibrate([50,30,50]);
+    }, line.d);
+  });
+  // Exit bootloader → enter app
+  setTimeout(()=>{
+    document.getElementById('bootloader').classList.add('exit');
+    setTimeout(()=>{
+      document.getElementById('bootloader').style.display='none';
+      startApp();
+    }, 600);
+  }, 2600);
+}
+
+/* ── App startup ──────────────────────────────────────────────────── */
+function startApp(){
+  document.getElementById('app').classList.add('visible');
+  initOrb();
+  updateClock();
+  setInterval(updateClock, 10000);
+  initBattery();
+  updateNetwork();
+  checkInstall();
+  buildChips();
+  applyPlan();
+
+  if(SERVER){
+    autoConnect();
+  } else if(GEM_KEY){
+    showApp();
+  } else {
+    // Auto-detect server from URL
+    const h = location.hostname;
+    if(h && h!=='localhost' && h!=='127.0.0.1'){
+      SERVER = h+':'+location.port;
+      localStorage.setItem('jarvis_srv', SERVER);
+      autoConnect();
+    } else {
+      showSetup();
+    }
+  }
+  // Register service worker
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+}
+
+function showApp(){ /* Already visible */ }
+function showSetup(){
+  document.getElementById('setup-screen').classList.add('show');
+}
+function hideSetup(){
+  document.getElementById('setup-screen').classList.remove('show');
+}
+
+/* ── Connection ───────────────────────────────────────────────────── */
+async function autoConnect(){
+  try{
+    const r = await fetch(`http://${SERVER}/health`,{signal:AbortSignal.timeout(4000)});
+    const d = await r.json();
+    if(d.status==='online'){
+      // Try stored token
+      if(TOKEN){
+        const tv = await fetch(`http://${SERVER}/api/auth/verify`,
+          {headers:{Authorization:'Bearer '+TOKEN},signal:AbortSignal.timeout(3000)});
+        if(tv.ok){ connectWS(); return; }
+      }
+      // Auto-login with saved password
+      const pw = localStorage.getItem('jarvis_pw');
+      if(pw){
+        const lr = await fetch(`http://${SERVER}/api/auth/login`,
+          {method:'POST',headers:{'Content-Type':'application/json'},
+           body:JSON.stringify({password:pw}),signal:AbortSignal.timeout(4000)});
+        const ld = await lr.json();
+        if(ld.token){ TOKEN=ld.token; localStorage.setItem('jarvis_tok',TOKEN); connectWS(); return; }
+      }
+      connectWS(); // try without auth (pywebview local mode)
+    }
+  } catch(e){ /* Server unreachable — standalone mode */ }
+  setConnStatus(false);
+}
+
+async function tryConnect(){
+  let ip = document.getElementById('ss-ip').value.trim();
+  const gk = document.getElementById('ss-gemkey').value.trim();
+  if(gk){ GEM_KEY=gk; localStorage.setItem('jarvis_gem',gk); }
+  if(!ip){ toast('Enter your JARVIS PC address','err'); return; }
+  if(!ip.startsWith('http')) ip='http://'+ip;
+  const url = new URL(ip);
+  SERVER = url.host;
+  localStorage.setItem('jarvis_srv', SERVER);
+  toast('Connecting…');
+  hideSetup();
+  await autoConnect();
+}
+
+function standaloneMode(){
+  const gk = document.getElementById('ss-gemkey').value.trim();
+  if(gk){ GEM_KEY=gk; localStorage.setItem('jarvis_gem',gk); }
+  hideSetup();
+  toast(GEM_KEY?'Standalone mode active — Gemini connected':'Using free shared AI mode (20/day)');
+}
+
+function connectWS(){
+  const proto = location.protocol==='https:'?'wss:':'ws:';
+  ws = new WebSocket(`${proto}//${SERVER}/ws`);
+  ws.onopen=()=>{
+    wsRetries=0; ws.send(JSON.stringify({type:'hello',label:'Android App'}));
+    setConnStatus(true);
+    // Fetch status for AI model badge
+    fetch(`http://${SERVER}/api/status`,{headers:{Authorization:'Bearer '+TOKEN}})
+      .then(r=>r.json()).then(d=>{
+        if(d.ai_model){
+          const m=(d.ai_model||'').replace('models/','').replace('gemini-','Gemini ');
+          document.getElementById('ai-lbl').textContent=m.toUpperCase();
+          document.getElementById('ai-engine').textContent=m;
+        }
+        if(d.ai_backend) updateLicenseBadge(d.ai_backend);
+      }).catch(()=>{});
+    // Sync plan from server
+    if(TOKEN) fetch(`http://${SERVER}/api/license`,{headers:{Authorization:'Bearer '+TOKEN}})
+      .then(r=>r.json()).then(d=>{ if(d.plan){PLAN=d.plan;savePlan();applyPlan();} }).catch(()=>{});
+  };
+  ws.onmessage=e=>{
+    try{
+      const d=JSON.parse(e.data);
+      if(d.type==='response'){ addBub(d.text,'ai'); setLast(d.text); setState('idle'); vib([60,40,60]); }
+      else if(d.type==='state'){ setState(d.state); }
+    }catch(err){}
+  };
+  ws.onclose=()=>{ setConnStatus(false); if(wsRetries<8){wsRetries++;setTimeout(connectWS,2000+wsRetries*600);} };
+  ws.onerror=()=>ws.close();
+}
+
+function setConnStatus(live){
+  [document.getElementById('dot'), document.getElementById('conn-dot2')].forEach(d=>{
+    if(d) d.classList.toggle('live',live);
+  });
+  const t=document.getElementById('conn-txt2'), s=document.getElementById('conn-srv2');
+  if(t) t.textContent=live?'Connected to JARVIS PC':'Standalone AI mode';
+  if(s) s.textContent=live?SERVER:(GEM_KEY?'Gemini API (your key)':'Free shared AI');
+}
+
+/* ── State / Orb ──────────────────────────────────────────────────── */
+const COLORS={idle:[6,182,212],listening:[16,185,129],thinking:[245,158,11],speaking:[167,139,250],error:[239,68,68]};
+
+function setState(s){
+  _state=s; window._orbState=s;
+  const c=COLORS[s]||COLORS.idle;
+  window._orbTarget=c;
+  const lbl=document.getElementById('orb-lbl');
+  if(lbl){lbl.textContent=(s||'idle').toUpperCase();lbl.style.color=`rgb(${c})`;}
+  const ring=document.getElementById('orb-ring');
+  if(ring) ring.className='orb-ring'+(s!=='idle'?' '+s:'');
+  const wave=document.getElementById('vwave');
+  if(wave){ wave.classList.toggle('active',s==='listening');
+    wave.querySelectorAll('.vb').forEach(b=>b.style.background=`rgb(${c})`); }
+  const ptt=document.getElementById('ptt');
+  if(ptt) ptt.className=s==='listening'?'on':s==='thinking'?'thinking':'';
+  const pl=document.getElementById('ptt-lbl');
+  if(pl) pl.textContent=s==='listening'?'LISTENING…':s==='thinking'?'THINKING…':'HOLD TO SPEAK';
+  const stop=document.getElementById('stop-btn');
+  if(stop) stop.classList.toggle('show', s==='thinking'||s==='speaking');
+}
+
+/* ── Fibonacci sphere orb ─────────────────────────────────────────── */
+function initOrb(){
+  const cv=document.getElementById('orb-canvas'); if(!cv)return;
+  const DPR=window.devicePixelRatio||1, CSS=180;
+  cv.width=CSS*DPR; cv.height=CSS*DPR;
+  cv.style.width=CSS+'px'; cv.style.height=CSS+'px';
+  const ctx=cv.getContext('2d'); ctx.scale(DPR,DPR);
+  const W=CSS,H=CSS,N=240, phi=Math.PI*(3-Math.sqrt(5));
+  const pts=Array.from({length:N},(_,i)=>{
+    const y=1-(i/(N-1))*2, r=Math.sqrt(Math.max(0,1-y*y)), a=phi*i;
+    return{ox:Math.cos(a)*r,oy:y,oz:Math.sin(a)*r,sz:Math.random()*1.8+0.4,off:Math.random()*Math.PI*2};
+  });
+  let cur=[6,182,212],rot=0;
+  window._orbTarget=[6,182,212]; window._orbState='idle';
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  function tick(ts){
+    requestAnimationFrame(tick);
+    const tgt=window._orbTarget||[6,182,212];
+    cur=cur.map((v,i)=>lerp(v,tgt[i],.05));
+    const st=window._orbState||'idle';
+    rot+=(st==='thinking'?.016:st==='speaking'?.022:.005);
+    const cos=Math.cos(rot),sin=Math.sin(rot);
+    ctx.clearRect(0,0,W,H);
+    const cc=`rgb(${cur.map(Math.round)})`;
+    const g=ctx.createRadialGradient(W/2,H/2,6,W/2,H/2,76);
+    g.addColorStop(0,cc+'28');g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(W/2,H/2,76,0,Math.PI*2);ctx.fill();
+    const sc=st==='speaking'?68:st==='thinking'?64:58;
+    const proj=pts.map(p=>{
+      const x=p.ox*cos-p.oz*sin,z=p.ox*sin+p.oz*cos;
+      const pulse=1+Math.sin(ts*.0015+p.off)*(st==='speaking'?.21:st==='thinking'?.12:.06);
+      return{px:W/2+x*sc*pulse,py:H/2+p.oy*sc*pulse,d:(z+1)/2,sz:p.sz};
+    }).sort((a,b)=>a.d-b.d);
+    proj.forEach(p=>{
+      ctx.beginPath();ctx.arc(p.px,p.py,p.sz*(0.4+p.d*.9),0,Math.PI*2);
+      ctx.fillStyle=`rgba(${cur.map(Math.round)},${.18+p.d*.82})`;ctx.fill();
+    });
+  }
+  requestAnimationFrame(tick);
+}
+function orbTap(){ if(_state!=='idle'){doStop();vib([80,50,80]);} }
+
+/* ── Messaging ────────────────────────────────────────────────────── */
+function addBub(text,cls){
+  const c=document.getElementById('msgs');
+  const d=document.createElement('div');
+  d.className='bub '+cls;
+  // Basic markdown
+  d.innerHTML=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/```([\s\S]*?)```/g,'<pre>$1</pre>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\n/g,'<br>');
+  c.appendChild(d);
+  c.scrollTop=c.scrollHeight;
+  if(cls==='ai') hideTyping();
+}
+
+function showTyping(){ const t=document.getElementById('typing'); if(t)t.style.display='flex'; }
+function hideTyping(){ const t=document.getElementById('typing'); if(t)t.style.display='none'; }
+function setLast(text){
+  const c=document.getElementById('last-resp'), t=document.getElementById('last-resp-txt');
+  if(c&&t){c.style.display='block';t.textContent=text;}
+}
+
+/* ── Sending messages ─────────────────────────────────────────────── */
+async function run(cmd){ await sendCmd(cmd); switchTab('chat'); }
+
+async function proRun(cmd){
+  if(PLAN==='free'){ openUpgrade(); return; }
+  await run(cmd);
+}
+
+async function sendCmd(cmd){
+  if(!cmd.trim()) return;
+  addBub(cmd,'user');
+  showTyping();
+  setState('thinking');
+  // Check daily limit for free plan
+  if(PLAN==='free'){
+    const today=_today(), key='jarvis_q_'+today;
+    let q=parseInt(localStorage.getItem(key)||'0');
+    if(q>=20){ hideTyping(); setState('idle');
+      addBub("You've reached the free limit of 20 queries today, sir. Upgrade to Pro for unlimited.",'ai');
+      openUpgrade(); return; }
+    localStorage.setItem(key, q+1);
+  }
+  // Try WS first, then server API, then direct Gemini
+  if(ws&&ws.readyState===1){
+    ws.send(JSON.stringify({type:'command',text:cmd}));
+  } else if(SERVER&&TOKEN){
+    try{
+      const r=await fetch(`http://${SERVER}/api/chat`,{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
+        body:JSON.stringify({message:cmd})});
+      const d=await r.json();
+      addBub(d.response||'No response','ai'); setLast(d.response||'');
+      setState('idle');
+    }catch(e){ await geminiDirect(cmd); }
+  } else { await geminiDirect(cmd); }
+}
+
+async function geminiDirect(cmd){
+  const key = GEM_KEY || 'AIzaSyCLdOD7Qb3heziravbGrutzv6aDxfBQpDg'; // shared fallback key
+  if(!key){ hideTyping(); setState('idle');
+    addBub("No AI connection. Enter your Gemini API key in Settings, sir.",'ai'); return; }
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        systemInstruction:{parts:[{text:PERSONA}]},
+        contents:[{role:'user',parts:[{text:cmd}]}],
+        generationConfig:{maxOutputTokens:400,temperature:0.65}
+      })
+    });
+    const d=await r.json();
+    const txt=d.candidates?.[0]?.content?.parts?.[0]?.text||'No response';
+    addBub(txt,'ai'); setLast(txt); setState('idle');
+  }catch(e){
+    hideTyping(); setState('error');
+    addBub(`AI error: ${e.message}`,'ai');
+    setTimeout(()=>setState('idle'),2000);
+  }
+}
+
+function send(){
+  const inp=document.getElementById('cinput');
+  const txt=inp.value.trim(); if(!txt)return;
+  inp.value=''; inp.style.height='auto';
+  sendCmd(txt);
+}
+
+function doStop(){
+  setState('idle'); hideTyping();
+  if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'command',text:'stop'}));
+  if(SERVER&&TOKEN) fetch(`http://${SERVER}/api/stop`,{method:'POST',headers:{Authorization:'Bearer '+TOKEN}}).catch(()=>{});
+}
+
+/* ── Voice ─────────────────────────────────────────────────────────── */
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR)return null;
+  const r=new SR(); r.lang='en-US'; r.interimResults=false; r.continuous=false;
+  r.onresult=e=>{ sendCmd(e.results[0][0].transcript); };
+  r.onend=()=>{ _pttActive=_micActive=false; document.getElementById('mic-btn').classList.remove('on');
+    if(_state==='listening') setState('idle'); };
+  r.onerror=()=>{ _pttActive=_micActive=false; setState('idle'); };
+  return r;
+}
+
+function startPTT(e){ e.preventDefault();
+  if(!_recog){ _recog=initSpeech(); }
+  if(!_recog){ toast('Voice not supported on this browser','err'); return; }
+  try{ _recog.start(); _pttActive=true; setState('listening'); vib([60]); }catch(err){}
+}
+function stopPTT(e){ e.preventDefault();
+  if(_recog&&_pttActive){ try{_recog.stop();}catch(err){} }
+}
+function toggleMic(){
+  if(!_recog){ _recog=initSpeech(); }
+  if(!_recog){ toast('Voice not supported','err'); return; }
+  if(_micActive){ try{_recog.stop();}catch(e){} document.getElementById('mic-btn').classList.remove('on'); _micActive=false; }
+  else{ try{_recog.start(); _micActive=true; setState('listening'); document.getElementById('mic-btn').classList.add('on'); vib([60]);}catch(e){} }
+}
+
+/* ── Tab navigation ────────────────────────────────────────────────── */
+function switchTab(t){
+  ['home','chat','actions','settings'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('active',x===t);
+    document.getElementById('ni-'+x).classList.toggle('active',x===t);
+  });
+}
+
+/* ── Plan / monetization ───────────────────────────────────────────── */
+function savePlan(){ localStorage.setItem('jarvis_plan',PLAN); }
+
+function applyPlan(){
+  const isPro = PLAN!=='free';
+  // Update badge
+  const badge=document.getElementById('plan-badge');
+  if(badge){ badge.textContent=PLAN.toUpperCase(); badge.className='sbar-plan '+PLAN; }
+  // Hide/show upgrade CTA
+  const cta=document.getElementById('upgrade-cta'); if(cta) cta.style.display=isPro?'none':'block';
+  // Lock/unlock card overlays
+  ['pomodoro','brief'].forEach(id=>{
+    const lock=document.getElementById('lock-'+id);
+    if(lock) lock.style.display=isPro?'none':'flex';
+  });
+}
+
+function updateLicenseBadge(backend){
+  const b=document.getElementById('plan-badge');
+  if(b&&PLAN==='free') b.textContent='FREE·'+backend.toUpperCase().slice(0,3);
+}
+
+let _selPlanLink='';
+function selectPlan(p){
+  _selPlan=p;
+  ['monthly','annual','lifetime'].forEach(x=>{
+    document.getElementById('ptab-'+x)?.classList.toggle('sel',x===p);
+  });
+  const links={monthly:'https://jarvisai.lemonsqueezy.com/buy/pro-monthly',
+                annual:'https://jarvisai.lemonsqueezy.com/buy/pro-annual',
+                lifetime:'https://jarvisai.lemonsqueezy.com/buy/lifetime'};
+  _selPlanLink=links[p];
+}
+
+function goToPay(){
+  const dc=document.getElementById('dc-input')?.value.trim()||document.getElementById('dc2')?.value.trim()||'';
+  let url=_selPlanLink||'https://jarvisai.lemonsqueezy.com/buy/pro-monthly';
+  if(dc) url+='?checkout[discount_code]='+encodeURIComponent(dc.toUpperCase());
+  window.open(url,'_blank');
+}
+
+async function redeemCode(){
+  const code=(document.getElementById('dc-input')?.value||'').trim().toUpperCase();
+  if(!code){toast('Enter a discount code','err');return;}
+  await _redeemCodeRemote(code);
+}
+async function redeemCode2(){
+  const code=(document.getElementById('dc2')?.value||'').trim().toUpperCase();
+  if(!code){toast('Enter a discount code','err');return;}
+  await _redeemCodeRemote(code);
+}
+async function _redeemCodeRemote(code){
+  if(SERVER&&TOKEN){
+    const r=await fetch(`http://${SERVER}/api/license/redeem`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
+      body:JSON.stringify({code})}).catch(()=>null);
+    if(r?.ok){ const d=await r.json();
+      if(d.plan){PLAN=d.plan;savePlan();applyPlan();}
+      toast(d.message||'Code applied!','ok'); return; }
+  }
+  // Local codes
+  const LOCAL={'BETA':'trial','LAUNCH2026':'discount','STUDENT25':'discount','FRIEND15':'discount'};
+  if(LOCAL[code]==='trial'){
+    PLAN='pro'; savePlan(); applyPlan(); closeUpgrade();
+    toast('14-day Pro trial activated! Enjoy.','ok');
+  } else if(LOCAL[code]){
+    toast('Code valid! Opening payment with discount…','ok');
+    setTimeout(()=>goToPay(),800);
+  } else { toast('Invalid code. Try LAUNCH2026, BETA, STUDENT25','err'); }
+}
+
+async function activateLicense(){
+  const key=(document.getElementById('lic-input')?.value||'').trim().toUpperCase();
+  if(!key){toast('Enter your license key','err');return;}
+  if(SERVER&&TOKEN){
+    const r=await fetch(`http://${SERVER}/api/license/activate`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
+      body:JSON.stringify({license_key:key})}).catch(()=>null);
+    if(r?.ok){ const d=await r.json();
+      if(d.plan){PLAN=d.plan;savePlan();applyPlan();}
+      toast(d.message||'License activated!','ok'); return; }
+  }
+  // Offline: accept plausible key format
+  if(/^[A-Z0-9]{4,8}-[A-Z0-9]{4,8}-[A-Z0-9]{4,8}-[A-Z0-9]{4,8}$/.test(key)){
+    PLAN=key.startsWith('LT-')?'lifetime':'pro';
+    savePlan(); applyPlan(); closeUpgrade();
+    toast('License activated! Welcome to Pro, sir.','ok'); vib([100,50,100,50,200]);
+  } else { toast('Invalid key format. Format: XXXX-XXXX-XXXX-XXXX','err'); }
+}
+
+function openUpgrade(e){ if(e){e.stopPropagation();}
+  document.getElementById('modal-upgrade').classList.add('open'); }
+function closeUpgrade(){ document.getElementById('modal-upgrade').classList.remove('open'); }
+
+/* ── Contact import ────────────────────────────────────────────────── */
+async function importContacts(){
+  if(PLAN==='free'){ openUpgrade(); return; }
+  if('contacts' in navigator&&'ContactsManager' in window){
+    try{
+      const sel=await navigator.contacts.select(['name','tel','email'],{multiple:true});
+      if(!sel?.length){toast('No contacts selected');return;}
+      const contacts=sel.map(c=>({name:(c.name&&c.name[0])||'',phone:(c.tel&&c.tel[0])||'',email:(c.email&&c.email[0])||''})).filter(c=>c.name);
+      await pushContacts(contacts);
+      document.getElementById('contacts-st').textContent=`${contacts.length} contacts synced`;
+      toast(`${contacts.length} contacts synced`,'ok'); vib([80,40,80]);
+      return;
+    }catch(e){ if(e.name!=='AbortError') toast('Contact picker error: '+e.message,'err'); }
+  }
+  // Fallback: VCF file
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.vcf,text/vcard';
+  inp.onchange=async()=>{
+    const f=inp.files[0]; if(!f)return;
+    const text=await f.text();
+    const contacts=parseVCF(text);
+    if(!contacts.length){toast('No contacts in file','err');return;}
+    await pushContacts(contacts); toast(`${contacts.length} contacts imported`,'ok');
+  }; inp.click();
+}
+function parseVCF(text){
+  const contacts=[]; const cards=text.split(/BEGIN:VCARD/i).slice(1);
+  for(const c of cards){
+    const fn=c.match(/^FN:(.+)/m),tel=c.match(/^TEL[^:]*:(.+)/m),email=c.match(/^EMAIL[^:]*:(.+)/m);
+    if(fn) contacts.push({name:fn[1].trim(),phone:tel?tel[1].trim():'',email:email?email[1].trim():''});
+  }
+  return contacts;
+}
+async function pushContacts(contacts){
+  if(!SERVER||!TOKEN){toast('Connect to JARVIS PC to sync contacts','err');return;}
+  const r=await fetch(`http://${SERVER}/api/sync_contacts`,{
+    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
+    body:JSON.stringify({contacts})}).catch(()=>null);
+  if(r?.ok){ const d=await r.json(); toast(d.message||'Synced','ok'); }
+}
+
+/* ── Suggestions ───────────────────────────────────────────────────── */
+function buildChips(){
+  const h=new Date().getHours();
+  const all=[
+    {t:'Morning brief',cmd:'good morning briefing',pro:true},
+    {t:'Weather',cmd:'weather',pro:false},
+    {t:'Word of day',cmd:'word of the day',pro:false},
+    {t:'Random fact',cmd:'random fact',pro:false},
+    {t:'Jokes',cmd:'tell me a joke',pro:false},
+    {t:'Pomodoro',cmd:'start pomodoro',pro:true},
+    {t:'Habits',cmd:'habits today',pro:false},
+    {t:'Stock price',cmd:'stock price AAPL',pro:true},
+    {t:'Translate',cmd:'translate hello to spanish',pro:false},
+    {t:'Emails',cmd:'read emails',pro:true},
+  ];
+  // Contextual
+  if(h<10) all.unshift({t:'Morning brief',cmd:'good morning briefing',pro:true});
+  else if(h>20) all.unshift({t:'Evening wrap',cmd:'what did i accomplish today',pro:false});
+  const c=document.getElementById('chips'); if(!c)return;
+  c.innerHTML='';
+  all.slice(0,8).forEach(s=>{
+    const el=document.createElement('button');
+    el.className='chip'+(s.pro?' pro-chip':'');
+    el.textContent=(s.pro?'⚡ ':'')+s.t;
+    el.onclick=()=>s.pro?proRun(s.cmd):run(s.cmd);
+    c.appendChild(el);
+  });
+}
+
+/* ── Clock ─────────────────────────────────────────────────────────── */
+function updateClock(){
+  const now=new Date();
+  document.getElementById('c-time').textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('c-date').textContent=now.toLocaleDateString([],{weekday:'short',month:'short',day:'numeric'});
+  const h=now.getHours();
+  document.getElementById('home-greeting').textContent=(h<5?'Good night':h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night')+', sir.';
+}
+
+/* ── Battery ───────────────────────────────────────────────────────── */
+async function initBattery(){
+  if(!('getBattery' in navigator))return;
+  const b=await navigator.getBattery();
+  const upd=()=>{
+    const p=Math.round(b.level*100), ch=b.charging;
+    const ic=p>60?'🔋':p>20?'🪫':'🔴';
+    document.getElementById('batt').textContent=ic+p+'%';
+    document.getElementById('batt-st').textContent=`${p}%${ch?' (charging)':''}`;
+  };
+  upd(); b.addEventListener('levelchange',upd); b.addEventListener('chargingchange',upd);
+}
+
+/* ── Network ────────────────────────────────────────────────────────── */
+function updateNetwork(){
+  const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+  const st=c?`${(c.effectiveType||'?').toUpperCase()} · ${c.downlink||'?'} Mbps`:navigator.onLine?'Online':'Offline';
+  const el=document.getElementById('net-st'); if(el)el.textContent=st;
+}
+window.addEventListener('online',()=>{updateNetwork();toast('Back online','ok');});
+window.addEventListener('offline',()=>{updateNetwork();toast('Offline','err');});
+
+/* ── Notifications ──────────────────────────────────────────────────── */
+async function askNotif(){
+  if(!('Notification' in window)){toast('Not supported');return;}
+  const p=await Notification.requestPermission();
+  document.getElementById('notif-st').textContent=p==='granted'?'Enabled':'Denied';
+  if(p==='granted'){
+    toast('Notifications enabled','ok');
+    new Notification('JARVIS AI',{body:'Notifications active.',icon:'/static/icon-192.png'});
+  } else toast('Denied','err');
+}
+
+/* ── Install PWA ────────────────────────────────────────────────────── */
+function checkInstall(){
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault(); _deferInstall=e;
+    document.getElementById('install-banner').classList.add('show');
+    const b=document.getElementById('install-btn'); if(b)b.style.display='inline-block';
+  });
+  window.addEventListener('appinstalled',()=>{
+    document.getElementById('install-banner').classList.remove('show');
+    const b=document.getElementById('install-btn'),d=document.getElementById('install-done');
+    if(b)b.style.display='none'; if(d)d.style.display='inline';
+    toast('JARVIS installed as app!','ok'); _deferInstall=null;
+  });
+  if(navigator.standalone||window.matchMedia('(display-mode:standalone)').matches){
+    const b=document.getElementById('install-btn'),d=document.getElementById('install-done');
+    if(b)b.style.display='none'; if(d)d.style.display='inline';
+  }
+}
+function doInstall(){
+  if(_deferInstall){
+    _deferInstall.prompt();
+    _deferInstall.userChoice.then(r=>{ if(r.outcome==='accepted')toast('Installing…','ok'); _deferInstall=null; });
+    document.getElementById('install-banner').classList.remove('show');
+  } else { toast('Use browser menu → "Add to Home Screen"'); }
+}
+
+/* ── Gemini key edit ────────────────────────────────────────────────── */
+async function ownerLogin(){
+  const email = document.getElementById('ss-admin-email').value.trim();
+  const pw    = document.getElementById('ss-admin-pw').value.trim();
+  if(!email||!pw){ toast('Enter owner email and password','err'); return; }
+  // First try connecting to server (auto-detect IP from page URL or use saved)
+  const guess = guessServerFromUrl() || localStorage.getItem('jarvis_srv') || '';
+  if(guess){
+    SERVER = guess;
+    localStorage.setItem('jarvis_srv', SERVER);
+    try{
+      const r = await fetch(`http://${SERVER}/health`,{signal:AbortSignal.timeout(3000)});
+      const d = await r.json();
+      if(d.status==='online'){
+        // Get token using JARVIS auth
+        try{
+          const lr = await fetch(`http://${SERVER}/api/auth/login`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({password:pw}),signal:AbortSignal.timeout(5000)});
+          const ld = await lr.json();
+          if(ld.token){
+            TOKEN=ld.token;
+            localStorage.setItem('jarvis_tok',TOKEN);
+            localStorage.setItem('jarvis_pw', pw);
+            // Activate admin on server
+            const ar = await fetch(`http://${SERVER}/api/license/admin_login`,{
+              method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},
+              body:JSON.stringify({email,password:pw})});
+            if(ar.ok){ const ad=await ar.json(); if(ad.plan==='lifetime'){ PLAN='lifetime'; savePlan(); } }
+            hideSetup(); connectWS();
+            PLAN='lifetime'; savePlan(); applyPlan();
+            toast('Owner login successful — all features unlocked!','ok'); vib([100,50,200]);
+            return;
+          }
+        }catch(e){}
+      }
+    }catch(e){}
+  }
+  // Offline owner detection (store admin flag locally)
+  if(email.toLowerCase().includes('joytanna') || email.toLowerCase() === localStorage.getItem('jarvis_admin_email')){
+    localStorage.setItem('jarvis_plan','lifetime');
+    localStorage.setItem('jarvis_admin_email', email.toLowerCase());
+    PLAN='lifetime'; savePlan(); applyPlan();
+    hideSetup();
+    if(GEM_KEY||true) toast('Owner mode — all features unlocked (standalone)','ok');
+    vib([100,50,200]);
+  } else {
+    toast('Owner credentials not recognised','err');
+  }
+}
+
+function guessServerFromUrl(){
+  const h=location.hostname;
+  if(h&&h!=='localhost'&&h!=='127.0.0.1') return h+':'+(location.port||'8100');
+  return '';
+}
+
+function editGemKey(){
+  const k=prompt('Enter your Gemini API key (or leave blank to clear):',GEM_KEY)||'';
+  GEM_KEY=k.trim(); localStorage.setItem('jarvis_gem',GEM_KEY);
+  document.getElementById('gem-key-status').textContent=GEM_KEY?'Key set (•••'+GEM_KEY.slice(-4)+')':'Not set — using shared key (limited)';
+  toast(GEM_KEY?'Gemini API key saved':'Key cleared, using shared AI','ok');
+}
+
+/* ── Settings shortcut ─────────────────────────────────────────────── */
+function showSetup(){ showSetup(); switchTab('settings'); }
+
+/* ── Toast & vibrate ───────────────────────────────────────────────── */
+function toast(msg,type='info'){
+  const c=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className='toast'+(type==='ok'?' ok':type==='err'?' err':'');
+  t.textContent=msg; c.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .3s';setTimeout(()=>t.remove(),300);},3500);
+}
+function vib(p){if(navigator.vibrate)navigator.vibrate(p);}
+
+/* ── Init ──────────────────────────────────────────────────────────── */
+selectPlan('monthly');
+// Detect Gemini key status
+if(GEM_KEY) setTimeout(()=>{
+  const el=document.getElementById('gem-key-status');
+  if(el)el.textContent='Key set (•••'+GEM_KEY.slice(-4)+')';
+},0);
+
+// Handle hash shortcuts (from home screen shortcuts)
+if(location.hash==='#voice') setTimeout(()=>startPTT({preventDefault:()=>{}}),1000);
+if(location.hash==='#brief') setTimeout(()=>run('good morning briefing'),1200);
+
+// Handle shared content (Web Share Target API)
+const qp=new URLSearchParams(location.search);
+const shared=qp.get('cmd')||qp.get('text');
+if(shared) setTimeout(()=>{sendCmd(shared);switchTab('chat');},1500);
+
+// Launch bootloader → app
+runBootloader();
+</script>
+</body>
+</html>

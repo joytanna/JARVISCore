@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  JARVIS Sparse Package Manifest
+  Allows JARVIS to appear in Windows Settings > Apps > Default Apps
+  Register with: Add-AppxPackage -ExternalLocation "C:\JARVISCore" -Path "C:\JARVISCore\AppxManifest.xml"
+  (Run PowerShell as Administrator)
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap4="http://schemas.microsoft.com/appx/manifest/uap/windows10/4"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap uap3 uap4 rescap desktop">
+
+  <Identity
+    Name="JARVIS.AI.Assistant"
+    Publisher="CN=JARVIS"
+    Version="1.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>JARVIS AI</DisplayName>
+    <PublisherDisplayName>JARVIS</PublisherDisplayName>
+    <Logo>static\icon.png</Logo>
+    <Description>JARVIS — Personal AI Assistant with voice, tools, and Gemini AI</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.22621.0"/>
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="JARVIS" Executable="jarvis_launcher.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="JARVIS AI"
+        Description="Personal AI Assistant"
+        Square150x150Logo="static\icon.png"
+        Square44x44Logo="static\icon.png"
+        BackgroundColor="#050F1E">
+        <uap:DefaultTile Wide310x150Logo="static\icon.png" ShortName="JARVIS"/>
+        <uap:SplashScreen Image="static\icon.png" BackgroundColor="#050F1E"/>
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- Register as a default assistant / voice app -->
+        <uap3:Extension Category="windows.appointmentDataProvider"/>
+
+        <!-- URI protocol handler: jarvis:// -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="jarvis">
+            <uap:DisplayName>JARVIS AI</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+
+        <!-- Context menu integration -->
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation ToastActivatorCLSID="{12345678-1234-1234-1234-123456789ABC}"/>
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust"/>
+    <uap:Capability Name="contacts"/>
+    <uap:Capability Name="appointments"/>
+    <uap:Capability Name="phoneCall"/>
+    <uap:Capability Name="userAccountInformation"/>
+    <DeviceCapability Name="microphone"/>
+  </Capabilities>
+</Package>

@@ -1,0 +1,23 @@
+
+# JARVIS security — auto-added
+.env
+*.env
+memory/
+memory/**
+static/icon-*.png
+__pycache__/
+*.pyc
+*.pyo
+.jwt_secret
+google_token.json
+google_credentials.json
+vault.enc
+.vault_key
+.github_token
+.telegram_token
+.telegram_chat_id
+auth.json
+*.log
+dist/
+build/
+.vscode/settings.json

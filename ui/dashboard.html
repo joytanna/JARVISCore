@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS // Core Interface</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  body { font-family:'Plus Jakarta Sans',sans-serif; background:#05070c; }
+  .jb  { font-family:'JetBrains Mono',monospace; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track  { background:#0b0f19; }
+  ::-webkit-scrollbar-thumb  { background:#1e293b; border-radius:2px; }
+  ::-webkit-scrollbar-thumb:hover { background:#06b6d4; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .msg-in { animation: fadeUp .28s ease forwards; }
+  @keyframes scanline {
+    0%{transform:translateY(-100%)} 100%{transform:translateY(100%)}
+  }
+  .scan-anim { animation: scanline 2.2s linear infinite; }
+  .tab-active { border-bottom:2px solid #06b6d4!important; color:#22d3ee!important; font-weight:600; }
+  .tab-inactive { border-bottom:2px solid transparent; color:#475569; }
+  .tab-inactive:hover { color:#94a3b8; }
+  #input-box:focus-within { box-shadow:0 0 0 1px rgba(6,182,212,.35), 0 0 24px rgba(6,182,212,.07); border-color:rgba(6,182,212,.4)!important; }
+  .state-bar { height:2px; transition:background .5s ease; }
+  .chip { transition:all .3s ease; }
+  /* Orb glow layers */
+  #orb-wrap { position:relative; }
+  #orb-canvas { display:block; position:relative; z-index:2; }
+</style>
+</head>
+<body class="text-slate-200 h-screen overflow-hidden flex flex-col select-none">
+
+<!-- ═══ HEADER ═══════════════════════════════════════════════════════════ -->
+<header class="h-[52px] shrink-0 border-b border-slate-800/60 bg-[#070b14] px-5 flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    <span class="relative flex h-2 w-2">
+      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+      <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+    </span>
+    <span class="jb font-bold tracking-widest text-[13px] text-cyan-400">JARVIS // AGENT_OS</span>
+    <div class="hidden md:flex items-center gap-2 text-[11px] text-slate-500 border-l border-slate-800 pl-4 jb">
+      <span>SYS: <span id="sys-status" class="text-emerald-400">OPTIMAL</span></span>
+      <span class="opacity-40">•</span>
+      <span>STATE: <span id="hdr-state" class="text-cyan-400 transition-colors duration-500">IDLE</span></span>
+    </div>
+  </div>
+
+  <div class="hidden lg:flex items-center gap-5 text-[11px] jb text-slate-400">
+    <div class="flex items-center gap-2">
+      <span>CPU</span>
+      <div class="w-20 bg-slate-900 h-[5px] rounded-full overflow-hidden border border-slate-800">
+        <div id="cpu-bar" class="h-full bg-cyan-500 transition-all duration-1000" style="width:0%"></div>
+      </div>
+      <span class="text-[10px] text-cyan-400" id="cpu-pct">─%</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span>RAM</span>
+      <div class="w-20 bg-slate-900 h-[5px] rounded-full overflow-hidden border border-slate-800">
+        <div id="ram-bar" class="h-full bg-purple-500 transition-all duration-1000" style="width:0%"></div>
+      </div>
+      <span class="text-[10px] text-purple-400" id="ram-pct">─%</span>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3 jb text-[11px]">
+    <div id="devices-chip" class="chip bg-slate-900/80 px-3 py-1 rounded border border-slate-800/80 flex items-center gap-1.5 text-slate-400 cursor-pointer" onclick="switchTab('remote')">
+      <i class="fa-solid fa-mobile-screen-button text-[10px]" id="dev-icon"></i>
+      <span id="dev-count">0</span><span class="text-slate-600">connected</span>
+    </div>
+    <div class="text-slate-600" id="clock">──:──:──</div>
+    <button onclick="hideWindow()" class="text-slate-600 hover:text-red-400 transition-colors ml-1" title="Minimise"><i class="fa-solid fa-minus text-xs"></i></button>
+  </div>
+</header>
+
+<!-- State bar (thin coloured line under header) -->
+<div class="state-bar" id="state-bar" style="background:#06b6d4"></div>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════════════════════ -->
+<main class="flex-1 flex overflow-hidden min-h-0">
+
+  <!-- ── LEFT SIDEBAR ──────────────────────────────────────────────── -->
+  <aside class="w-[220px] shrink-0 bg-[#060910] border-r border-slate-900 flex flex-col">
+
+    <!-- Particle orb -->
+    <div id="orb-wrap" class="flex items-center justify-center pt-3 pb-0">
+      <canvas id="orb-canvas" width="180" height="180"></canvas>
+    </div>
+    <div class="text-center mb-1">
+      <span id="orb-label" class="jb text-[10px] tracking-widest" style="color:#06b6d4aa">◈  IDLE</span>
+    </div>
+
+    <!-- Thin divider -->
+    <div class="mx-3 border-t border-slate-900/80"></div>
+
+    <!-- Session list -->
+    <div class="px-3 py-1.5 flex justify-between items-center">
+      <span class="jb text-[9px] tracking-widest text-slate-600 uppercase">Sessions</span>
+      <span class="jb text-[9px] text-slate-700" id="turn-count">0 turns</span>
+    </div>
+    <div class="flex-1 overflow-y-auto px-2 space-y-0.5" id="session-list"></div>
+
+    <!-- System indicators -->
+    <div class="p-3 border-t border-slate-900 bg-[#04060b] space-y-1 shrink-0">
+      <div class="flex justify-between jb text-[10px]"><span class="text-slate-600">Voice Auth</span><span id="ind-voice" class="text-slate-700">─</span></div>
+      <div class="flex justify-between jb text-[10px]"><span class="text-slate-600">Remote</span><span id="ind-remote" class="text-slate-700">OFFLINE</span></div>
+      <div class="flex justify-between jb text-[10px]"><span class="text-slate-600">Gmail</span><span id="ind-gmail" class="text-slate-700">─</span></div>
+    </div>
+  </aside>
+
+  <!-- ── CENTRE CHAT ────────────────────────────────────────────────── -->
+  <section class="flex-1 flex flex-col min-w-0 bg-[#080d1a]/40">
+
+    <!-- Chat stream -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-5 min-h-0" id="chat-stream">
+      <div class="text-center py-10">
+        <p class="jb text-[10px] tracking-widest text-slate-700">JARVIS // CORE INTERFACE</p>
+        <p class="text-slate-600 text-sm mt-2">All systems operational, sir.</p>
+      </div>
+    </div>
+
+    <!-- Thinking indicator (hidden until active) -->
+    <div id="thinking-bar" class="hidden px-5 pb-2">
+      <div class="max-w-3xl mx-auto bg-slate-950/80 border border-slate-900 rounded-xl px-4 py-2.5 flex items-center gap-3">
+        <div class="flex gap-1">
+          <div class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style="animation-delay:0s"></div>
+          <div class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style="animation-delay:.15s"></div>
+          <div class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style="animation-delay:.3s"></div>
+        </div>
+        <span class="jb text-[11px] text-amber-400/70" id="thinking-text">Processing...</span>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="px-5 pb-4 pt-2 shrink-0 bg-gradient-to-t from-[#05070c] via-[#05070c]/95 to-transparent">
+      <div id="input-box" class="max-w-3xl mx-auto bg-[#0a0f1d] border border-slate-800/70 rounded-2xl p-2 transition-all duration-300">
+        <div class="flex items-center gap-2 px-2 pb-1.5 text-[10px] text-slate-600 border-b border-slate-900/50 mb-1.5 jb">
+          <i class="fa-solid fa-bolt text-cyan-500/70 text-[9px]"></i>
+          <span id="mode-label" class="text-cyan-500/60">AUTONOMOUS</span>
+          <span class="opacity-40">•</span>
+          <span id="sub-hint" class="text-slate-600">Ready</span>
+        </div>
+        <div class="flex items-end gap-2 px-1">
+          <button class="p-2 text-slate-600 hover:text-cyan-400 hover:bg-slate-900 rounded-lg transition-colors shrink-0" title="Attach file" onclick="attachFile()">
+            <i class="fa-solid fa-paperclip text-sm"></i>
+          </button>
+          <textarea id="chat-input" rows="1"
+            placeholder="Issue a command or ask anything..."
+            class="flex-1 bg-transparent border-0 focus:outline-none text-slate-200 placeholder-slate-700 text-sm py-1.5 resize-none max-h-32 min-h-[34px] overflow-y-auto leading-snug"></textarea>
+          <button id="send-btn"
+            class="p-2.5 bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-slate-950 font-bold rounded-xl transition-all shrink-0 shadow-lg shadow-cyan-600/10">
+            <i class="fa-solid fa-arrow-up text-sm"></i>
+          </button>
+        </div>
+      </div>
+      <div class="text-[10px] text-center jb text-slate-800 mt-1.5">
+        <kbd class="bg-slate-900 px-1 rounded border border-slate-800/80 text-slate-600">Enter</kbd> send &nbsp;•&nbsp;
+        <kbd class="bg-slate-900 px-1 rounded border border-slate-800/80 text-slate-600">Shift+Enter</kbd> newline &nbsp;•&nbsp;
+        <kbd class="bg-slate-900 px-1 rounded border border-slate-800/80 text-slate-600">Esc</kbd> minimise
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RIGHT PANEL ───────────────────────────────────────────────── -->
+  <aside class="w-[300px] shrink-0 bg-[#060910] border-l border-slate-900 flex flex-col">
+
+    <!-- Tabs -->
+    <div class="flex border-b border-slate-900 jb text-[10px] bg-[#04060b] shrink-0">
+      <button class="tab-btn tab-active flex-1 py-2.5 px-1 text-center" data-tab="exec"><i class="fa-solid fa-terminal mr-1 text-[9px]"></i>EXEC</button>
+      <button class="tab-btn tab-inactive flex-1 py-2.5 px-1 text-center" data-tab="remote"><i class="fa-solid fa-tower-broadcast mr-1 text-[9px]"></i>REMOTE</button>
+      <button class="tab-btn tab-inactive flex-1 py-2.5 px-1 text-center" data-tab="voice"><i class="fa-solid fa-microphone mr-1 text-[9px]"></i>VOICE</button>
+      <button class="tab-btn tab-inactive flex-1 py-2.5 px-1 text-center" data-tab="output"><i class="fa-solid fa-code mr-1 text-[9px]"></i>OUTPUT</button>
+    </div>
+
+    <!-- ── EXEC TAB ── -->
+    <div class="tab-panel flex-1 flex flex-col overflow-hidden" id="panel-exec">
+      <div class="px-3 py-1.5 bg-[#05080f] border-b border-slate-900 flex justify-between items-center jb text-[10px] text-slate-600 shrink-0">
+        <span class="tracking-wider">AGENT EXECUTOR LOGS</span>
+        <i class="fa-solid fa-circle text-[6px] text-emerald-400 animate-pulse"></i>
+      </div>
+      <div class="flex-1 overflow-y-auto p-3 jb text-[11px] space-y-0.5" id="exec-log"></div>
+    </div>
+
+    <!-- ── REMOTE TAB ── -->
+    <div class="tab-panel hidden flex-1 flex-col overflow-y-auto" id="panel-remote">
+      <div class="p-4 space-y-4">
+        <div class="jb text-[10px] text-slate-500 tracking-wider">REMOTE ACCESS</div>
+
+        <!-- QR card -->
+        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span class="jb">Scan to connect</span>
+            <span id="remote-status-badge" class="jb text-[10px] text-slate-600">OFFLINE</span>
+          </div>
+          <div class="flex justify-center">
+            <div id="qr-box" class="p-2 bg-white rounded-lg inline-block">
+              <div class="jb text-slate-700 text-[10px] px-4 py-8">Loading…</div>
+            </div>
+          </div>
+          <div class="jb text-[10px] text-slate-700 text-center break-all" id="remote-url-text">─</div>
+          <button onclick="refreshQR()" class="w-full jb text-[11px] bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-900 text-slate-400 hover:text-cyan-400 py-2 rounded-lg transition-all">
+            <i class="fa-solid fa-qrcode mr-1.5"></i>Refresh QR
+          </button>
+        </div>
+
+        <!-- Connected devices -->
+        <div>
+          <div class="jb text-[10px] text-slate-600 tracking-wider mb-2">CONNECTED DEVICES</div>
+          <div id="device-list" class="space-y-2">
+            <div class="jb text-[11px] text-slate-700 px-1">No devices connected</div>
+          </div>
+        </div>
+
+        <!-- Push to devices -->
+        <button id="push-btn" onclick="pushToDevices()" disabled
+          class="w-full jb text-[11px] bg-slate-900 border border-slate-800 text-slate-600 py-2 rounded-lg cursor-not-allowed transition-all"
+          id="push-btn">
+          <i class="fa-solid fa-satellite-dish mr-1.5"></i>Push to All Devices
+        </button>
+      </div>
+    </div>
+
+    <!-- ── VOICE TAB ── -->
+    <div class="tab-panel hidden flex-1 flex-col overflow-y-auto" id="panel-voice">
+      <div class="p-4 space-y-4">
+        <!-- Voice auth card -->
+        <div class="bg-slate-950/60 border border-slate-900 rounded-xl p-4 space-y-3">
+          <div class="text-xs font-semibold text-slate-300">Voice Authentication</div>
+          <div class="flex items-center gap-3">
+            <div class="w-2.5 h-2.5 rounded-full transition-colors duration-500" id="va-dot" style="background:#1e293b"></div>
+            <span class="jb text-[11px] text-slate-400" id="va-text">Not enrolled</span>
+          </div>
+          <p class="text-[11px] text-slate-600">Required for device control (shutdown, restart, lock, etc.)</p>
+          <button onclick="doEnrollVoice()"
+            class="w-full jb text-[11px] bg-slate-900 hover:bg-cyan-950/40 border border-slate-800 hover:border-cyan-900/50 text-slate-400 hover:text-cyan-400 py-2.5 rounded-lg transition-all">
+            <i class="fa-solid fa-microphone mr-1.5"></i>Enroll My Voice (3 samples)
+          </button>
+          <div id="va-result" class="jb text-[10px] text-slate-600 hidden"></div>
+        </div>
+
+        <!-- Contacts import card -->
+        <div class="bg-slate-950/60 border border-slate-900 rounded-xl p-4 space-y-3">
+          <div class="text-xs font-semibold text-slate-300">Contacts</div>
+          <p class="text-[11px] text-slate-600">Import from Windows Phone Link or system contacts.</p>
+          <button onclick="doImportContacts()"
+            class="w-full jb text-[11px] bg-slate-900 hover:bg-purple-950/40 border border-slate-800 hover:border-purple-900/50 text-slate-400 hover:text-purple-400 py-2.5 rounded-lg transition-all">
+            <i class="fa-solid fa-address-book mr-1.5"></i>Import from Phone Link
+          </button>
+          <div id="contacts-result" class="jb text-[10px] text-slate-600 hidden"></div>
+        </div>
+
+        <!-- Quick command shortcuts -->
+        <div class="bg-slate-950/60 border border-slate-900 rounded-xl p-4 space-y-2">
+          <div class="text-xs font-semibold text-slate-300 mb-2">Quick Commands</div>
+          <div class="grid grid-cols-2 gap-1.5" id="quick-cmds"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OUTPUT TAB ── -->
+    <div class="tab-panel hidden flex-1 flex-col overflow-hidden" id="panel-output">
+      <div class="px-3 py-2 bg-slate-950/60 border-b border-slate-900 flex justify-between items-center jb text-[11px] shrink-0">
+        <span class="text-slate-500"><i class="fa-regular fa-file-code text-cyan-400/70 mr-1.5"></i><span id="artifact-name">output</span></span>
+        <button onclick="copyOutput()" class="text-slate-600 hover:text-slate-300 transition-colors"><i class="fa-regular fa-copy text-xs"></i></button>
+      </div>
+      <div class="flex-1 overflow-auto bg-[#04060b] p-4 jb text-[11px] text-slate-300 whitespace-pre-wrap leading-relaxed" id="artifact-body">
+─ awaiting output ─</div>
+    </div>
+
+  </aside>
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<script>
+// ── GLOBALS ────────────────────────────────────────────────────────────
+let currentState = 'idle';
+let turnCount = 0;
+let connectedDevices = [];
+let remoteUrl = '';
+
+const STATE_CFG = {
+  idle:      { hex:'#06b6d4', tw:'text-cyan-400',   label:'IDLE'      },
+  listening: { hex:'#10b981', tw:'text-emerald-400', label:'LISTENING' },
+  thinking:  { hex:'#f59e0b', tw:'text-amber-400',   label:'THINKING'  },
+  speaking:  { hex:'#a78bfa', tw:'text-violet-400',  label:'SPEAKING'  },
+};
+
+const QUICK_CMDS = [
+  'weather','briefing','lock screen','mute',
+  'read emails','open chrome','screenshot','what am I working on',
+];
+
+// ── INIT ──────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  buildQuickCmds();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(pollStats, 4000);
+  setTimeout(() => { refreshQR(); pollStats(); }, 800);
+  log('JARVIS AGENT OS initialised', 'sys');
+  log('All subsystems nominal', 'ok');
+});
+
+// ── TABS ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('tab-active',   b.dataset.tab === name);
+    b.classList.toggle('tab-inactive', b.dataset.tab !== name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('hidden', !p.id.endsWith(name));
+    p.classList.toggle('flex',  p.id.endsWith(name));
+  });
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────
+function setState(s) {
+  currentState = s;
+  const cfg = STATE_CFG[s] || STATE_CFG.idle;
+
+  document.getElementById('state-bar').style.background = cfg.hex;
+  document.getElementById('hdr-state').textContent = cfg.label;
+  document.getElementById('hdr-state').className = cfg.tw + ' transition-colors duration-500 jb';
+  document.getElementById('orb-label').textContent = '◈  ' + cfg.label;
+  document.getElementById('orb-label').style.color  = cfg.hex + 'aa';
+  document.getElementById('sub-hint').textContent = cfg.label.toLowerCase();
+
+  const tb = document.getElementById('thinking-bar');
+  const tt = document.getElementById('thinking-text');
+  if (s === 'thinking') {
+    tb.classList.remove('hidden');
+    tt.textContent = 'Processing…';
+  } else if (s === 'speaking') {
+    tb.classList.remove('hidden');
+    tt.textContent = 'Speaking…';
+    tt.className = 'jb text-[11px] text-violet-400/70';
+  } else {
+    tb.classList.add('hidden');
+  }
+
+  if (window._orb) window._orb.setState(s);
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────────
+function updateClock() {
+  const n = new Date(), p = x => String(x).padStart(2,'0');
+  document.getElementById('clock').textContent = p(n.getHours())+':'+p(n.getMinutes())+':'+p(n.getSeconds());
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────
+async function pollStats() {
+  if (!window.pywebview) return;
+  try {
+    const s = await window.pywebview.api.get_status();
+    if (s.cpu != null) {
+      document.getElementById('cpu-bar').style.width = s.cpu + '%';
+      document.getElementById('cpu-pct').textContent = Math.round(s.cpu) + '%';
+      document.getElementById('cpu-bar').style.background = s.cpu > 80 ? '#f87171' : s.cpu > 60 ? '#f59e0b' : '#06b6d4';
+    }
+    if (s.ram != null) {
+      document.getElementById('ram-bar').style.width = s.ram + '%';
+      document.getElementById('ram-pct').textContent = Math.round(s.ram) + '%';
+    }
+    if (s.voice_enrolled) {
+      document.getElementById('va-dot').style.background = '#10b981';
+      document.getElementById('va-text').textContent = 'Enrolled';
+      document.getElementById('ind-voice').textContent = 'ACTIVE';
+      document.getElementById('ind-voice').className = 'text-emerald-400 jb text-[10px]';
+    }
+    if (s.gmail_connected) {
+      document.getElementById('ind-gmail').textContent = 'OAUTH';
+      document.getElementById('ind-gmail').className = 'text-cyan-400 jb text-[10px]';
+    }
+  } catch(e) {}
+}
+
+// ── MESSAGES ──────────────────────────────────────────────────────────
+function addMessage(text, tag) {
+  const stream = document.getElementById('chat-stream');
+  const now = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const isUser = tag === 'you';
+  turnCount++;
+  document.getElementById('turn-count').textContent = Math.ceil(turnCount/2) + ' turns';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'max-w-3xl mx-auto w-full flex gap-3 msg-in';
+
+  if (isUser) {
+    wrap.innerHTML =
+      `<div class="w-7 h-7 rounded bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0 jb text-[10px] text-slate-300 font-bold">U</div>
+       <div class="space-y-1 flex-1 min-w-0">
+         <div class="flex items-center gap-2">
+           <span class="jb text-[10px] font-semibold text-slate-400">USER</span>
+           <span class="jb text-[10px] text-slate-700">${now}</span>
+         </div>
+         <div class="text-sm text-slate-300 leading-relaxed bg-slate-900/40 px-4 py-3 rounded-xl border border-slate-900/80">${esc(text)}</div>
+       </div>`;
+    addSession(text);
+  } else {
+    wrap.innerHTML =
+      `<div class="w-7 h-7 rounded bg-cyan-950 border border-cyan-800/60 flex items-center justify-center shrink-0 text-cyan-400"><i class="fa-solid fa-robot text-[10px]"></i></div>
+       <div class="space-y-1 flex-1 min-w-0">
+         <div class="flex items-center gap-2">
+           <span class="jb text-[10px] font-semibold text-cyan-400">JARVIS</span>
+           <span class="jb text-[10px] text-slate-700">${now}</span>
+         </div>
+         <div class="text-sm text-slate-200 leading-relaxed">${fmtMd(text)}</div>
+       </div>`;
+    document.getElementById('artifact-body').textContent = text;
+    document.getElementById('artifact-name').textContent = 'response_' + Date.now();
+  }
+
+  stream.appendChild(wrap);
+  stream.scrollTop = stream.scrollHeight;
+}
+
+function addSession(preview) {
+  const list = document.getElementById('session-list');
+  const d = document.createElement('div');
+  d.className = 'group px-3 py-1.5 rounded hover:bg-slate-900/50 cursor-pointer transition-colors';
+  d.innerHTML = `<div class="jb text-[10px] text-slate-500 group-hover:text-slate-300 truncate">${esc(preview.slice(0,55))}${preview.length>55?'…':''}</div>`;
+  list.insertBefore(d, list.firstChild);
+  while (list.children.length > 30) list.removeChild(list.lastChild);
+}
+
+// ── EXEC LOG ──────────────────────────────────────────────────────────
+const LOG_COLORS = { sys:'text-slate-600', ok:'text-emerald-400', tool:'text-cyan-400/80', warn:'text-amber-400', err:'text-red-400', info:'text-slate-400' };
+function log(msg, type='info') {
+  const el = document.getElementById('exec-log');
+  const ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const d = document.createElement('div');
+  d.className = (LOG_COLORS[type]||LOG_COLORS.info) + ' leading-relaxed break-all';
+  d.textContent = `[${ts}] ${msg}`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+  while (el.children.length > 300) el.removeChild(el.firstChild);
+}
+
+// Also exposed for Python to call
+function appendLog(msg, type) { log(msg, type||'info'); }
+
+// ── INPUT ─────────────────────────────────────────────────────────────
+const inp = document.getElementById('chat-input');
+inp.addEventListener('input', function() { this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,128)+'px'; });
+inp.addEventListener('keydown', e => {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  if (e.key==='Escape') hideWindow();
+});
+document.getElementById('send-btn').addEventListener('click', sendMsg);
+
+async function sendMsg() {
+  const txt = inp.value.trim(); if (!txt) return;
+  inp.value=''; inp.style.height='auto';
+  addMessage(txt, 'you');
+  log('User: ' + txt.slice(0,80), 'sys');
+  if (window.pywebview) await window.pywebview.api.send_command(txt);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtMd(t) {
+  return esc(t)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+)`/g,'<code class="bg-slate-900 px-1 rounded jb text-cyan-300 text-[11px]">$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+// ── QR REMOTE ─────────────────────────────────────────────────────────
+async function refreshQR() {
+  if (!window.pywebview) return;
+  try {
+    const info = await window.pywebview.api.get_remote_info();
+    remoteUrl = info.url;
+    document.getElementById('remote-url-text').textContent = info.url;
+    document.getElementById('remote-status-badge').textContent = 'ACTIVE';
+    document.getElementById('remote-status-badge').className = 'jb text-[10px] text-emerald-400';
+    document.getElementById('ind-remote').textContent = 'ACTIVE';
+    document.getElementById('ind-remote').className = 'text-emerald-400 jb text-[10px]';
+
+    const box = document.getElementById('qr-box');
+    box.innerHTML = '';
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(box, { text: info.url, width:140, height:140, colorDark:'#000000', colorLight:'#ffffff' });
+    } else {
+      box.innerHTML = `<div class="jb text-slate-900 text-[10px] p-2 max-w-[140px] break-all">${info.url}</div>`;
+    }
+  } catch(e) { log('QR refresh failed: '+e,'warn'); }
+}
+
+function updateDevices(devices) {
+  connectedDevices = devices;
+  const n = devices.length;
+  document.getElementById('dev-count').textContent = n;
+  const chip = document.getElementById('devices-chip');
+  const icon = document.getElementById('dev-icon');
+  if (n > 0) {
+    chip.classList.add('border-emerald-800/40');
+    icon.className = 'fa-solid fa-mobile-screen-button text-[10px] text-emerald-400';
+  } else {
+    chip.classList.remove('border-emerald-800/40');
+    icon.className = 'fa-solid fa-mobile-screen-button text-[10px] text-slate-600';
+  }
+
+  const list = document.getElementById('device-list');
+  if (n === 0) {
+    list.innerHTML = '<div class="jb text-[11px] text-slate-700 px-1">No devices connected</div>';
+    document.getElementById('push-btn').disabled = true;
+    document.getElementById('push-btn').classList.add('cursor-not-allowed','text-slate-600');
+    document.getElementById('push-btn').classList.remove('hover:bg-cyan-950/30','hover:border-cyan-900','hover:text-cyan-400','cursor-pointer');
+  } else {
+    list.innerHTML = devices.map(d => `
+      <div class="flex items-center justify-between bg-slate-900/50 rounded-lg px-3 py-2 border border-slate-800/60">
+        <div class="flex items-center gap-2">
+          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+          <span class="jb text-[11px] text-slate-300">${d.label||('Device '+d.id.slice(0,6))}</span>
+        </div>
+        <span class="jb text-[10px] text-emerald-400">LIVE</span>
+      </div>`).join('');
+    const pb = document.getElementById('push-btn');
+    pb.disabled = false;
+    pb.classList.remove('cursor-not-allowed','text-slate-600');
+    pb.classList.add('hover:bg-cyan-950/30','hover:border-cyan-900','hover:text-cyan-400','cursor-pointer');
+  }
+  log(`Remote: ${n} device(s) connected`, 'sys');
+}
+
+async function pushToDevices() {
+  const msg = document.getElementById('chat-input').value.trim() || 'ping';
+  if (window.pywebview) await window.pywebview.api.push_to_devices(msg);
+  log('Pushed to '+connectedDevices.length+' device(s): '+msg, 'tool');
+}
+
+// ── VOICE AUTH ────────────────────────────────────────────────────────
+async function doEnrollVoice() {
+  const btn = document.querySelector('#panel-voice button');
+  btn.textContent = 'Recording (speak 4 times)…';
+  btn.disabled = true;
+  const res = document.getElementById('va-result');
+  res.classList.remove('hidden');
+  res.textContent = 'Enrolling…';
+  log('Voice enrollment started', 'tool');
+  if (window.pywebview) {
+    const r = await window.pywebview.api.enroll_voice();
+    res.textContent = r;
+    log(r, 'ok');
+    if (r && r.toLowerCase().includes('complete')) {
+      document.getElementById('va-dot').style.background = '#10b981';
+      document.getElementById('va-text').textContent = 'Enrolled';
+    }
+  }
+  btn.textContent = ''; btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-microphone mr-1.5"></i>Enroll My Voice (3 samples)';
+}
+
+// ── CONTACTS IMPORT ───────────────────────────────────────────────────
+async function doImportContacts() {
+  const res = document.getElementById('contacts-result');
+  res.classList.remove('hidden');
+  res.textContent = 'Importing…';
+  log('Importing contacts from Phone Link…', 'tool');
+  if (window.pywebview) {
+    const r = await window.pywebview.api.import_contacts();
+    res.textContent = r;
+    log(r, 'ok');
+  }
+}
+
+// ── QUICK CMDS ────────────────────────────────────────────────────────
+function buildQuickCmds() {
+  const grid = document.getElementById('quick-cmds');
+  QUICK_CMDS.forEach(cmd => {
+    const b = document.createElement('button');
+    b.className = 'jb text-[10px] text-slate-500 hover:text-cyan-400 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-cyan-900/50 px-2 py-1.5 rounded-lg text-left transition-all truncate';
+    b.textContent = cmd;
+    b.onclick = () => { document.getElementById('chat-input').value = cmd; sendMsg(); };
+    grid.appendChild(b);
+  });
+}
+
+// ── OUTPUT ────────────────────────────────────────────────────────────
+function copyOutput() {
+  const t = document.getElementById('artifact-body').textContent;
+  navigator.clipboard.writeText(t).then(() => log('Output copied', 'sys'));
+}
+
+// ── MISC ──────────────────────────────────────────────────────────────
+function attachFile() { if (window.pywebview) window.pywebview.api.pick_file(); }
+function hideWindow() { if (window.pywebview) window.pywebview.api.hide_window(); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// PARTICLE ORB  (Fibonacci sphere, colour-morphing, depth-sorted)
+// ═══════════════════════════════════════════════════════════════════════
+class ParticleOrb {
+  constructor(canvas, N=300) {
+    this.c   = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.rotX = 0; this.rotY = 0; this.phase = 0;
+    this.state = 'idle';
+    this.cur = [6,182,212];
+    this.tgt = [6,182,212];
+    this.COLORS = {
+      idle:      [6,182,212],
+      listening: [16,240,120],
+      thinking:  [251,191,36],
+      speaking:  [192,132,252],
+    };
+
+    // Fibonacci sphere distribution
+    const phi = Math.PI * (3 - Math.sqrt(5));
+    this.pts = Array.from({length:N}, (_,i) => {
+      const y = 1 - (i/(N-1))*2;
+      const r = Math.sqrt(Math.max(0, 1-y*y));
+      const a = phi*i;
+      return { ox:Math.cos(a)*r, oy:y, oz:Math.sin(a)*r,
+               sz: Math.random()*1.7+0.4,
+               off: Math.random()*Math.PI*2 };
+    });
+  }
+
+  setState(s) { this.state=s; this.tgt=this.COLORS[s]||this.COLORS.idle; }
+
+  frame(ts) {
+    this.phase = ts*0.001;
+    const active = this.state !== 'idle';
+    // Lerp colour
+    for (let i=0;i<3;i++) this.cur[i] += (this.tgt[i]-this.cur[i])*0.045;
+
+    this.rotY += active ? 0.010 : 0.0035;
+    this.rotX += active ? 0.004 : 0.0015;
+
+    const W=this.c.width, H=this.c.height, cx=W/2, cy=H/2;
+    const R=Math.min(W,H)*0.41;
+    const ctx=this.ctx;
+    ctx.clearRect(0,0,W,H);
+
+    const cY=Math.cos(this.rotY), sY=Math.sin(this.rotY);
+    const cX=Math.cos(this.rotX), sX=Math.sin(this.rotX);
+
+    // Transform all points
+    const mapped = this.pts.map(p => {
+      let x=p.ox, y=p.oy, z=p.oz;
+      // rotate Y-axis
+      let nx=x*cY-z*sY, nz=x*sY+z*cY; x=nx; z=nz;
+      // rotate X-axis
+      let ny=y*cX-z*sX, nz2=y*sX+z*cX; y=ny; z=nz2;
+      // per-particle pulse
+      let pulse=1;
+      const ph=this.phase, off=p.off;
+      if (this.state==='speaking')  pulse=1+0.16*Math.sin(ph*7+off);
+      else if (this.state==='thinking') pulse=1+0.08*Math.sin(ph*3+off);
+      else if (this.state==='listening') pulse=1+0.06*Math.sin(ph*5+off);
+      return { sx:cx+x*R*pulse, sy:cy+y*R*pulse, z, sz:p.sz };
+    });
+
+    // Painter's sort (back→front)
+    mapped.sort((a,b)=>a.z-b.z);
+
+    const [r,g,b] = this.cur.map(Math.round);
+    for (const p of mapped) {
+      const depth=(p.z+1)/2;           // 0=back, 1=front
+      const alpha=0.10+depth*0.90;
+      const sz=p.sz*(0.25+depth*0.75);
+
+      // Soft halo for bright (front) particles
+      if (depth>0.72) {
+        const halo=ctx.createRadialGradient(p.sx,p.sy,0,p.sx,p.sy,sz*5);
+        halo.addColorStop(0,`rgba(${r},${g},${b},${((depth-0.72)*0.18).toFixed(3)})`);
+        halo.addColorStop(1,'transparent');
+        ctx.fillStyle=halo;
+        ctx.fillRect(p.sx-sz*5,p.sy-sz*5,sz*10,sz*10);
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, Math.max(0.3,sz), 0, Math.PI*2);
+      ctx.fillStyle=`rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+      ctx.fill();
+    }
+
+    // Ambient outer glow
+    const grd=ctx.createRadialGradient(cx,cy,R*0.55,cx,cy,R*1.4);
+    grd.addColorStop(0,`rgba(${r},${g},${b},0.045)`);
+    grd.addColorStop(1,'transparent');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+  }
+}
+
+// Start orb
+const _orbCanvas = document.getElementById('orb-canvas');
+window._orb = new ParticleOrb(_orbCanvas, 300);
+(function loop(ts) { window._orb.frame(ts); requestAnimationFrame(loop); })(0);
+</script>
+</body>
+</html>
